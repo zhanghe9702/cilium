@@ -735,6 +735,31 @@ Secondary Interface %s :: IPv4: (%s, %s), IPv6: (%s, %s)`, helpers.DualStackSupp
 			})
 		})
 
+		// SA for bpf_lxc needs at least >= 4.10 kernel. However, on the >= 4.10
+		// jobs (4.19, 5.4, net-next) we run with KPR=strict which enables the
+		// socket-lb. The latter takes over the bpf_lxc LB. So to test SA for bpf_lxc
+		// we need to disable KPR.
+		// In addition, there is a kernel bug on GKE which doesn't allow to disable
+		// KPR, so we just skip the suite - https://github.com/cilium/cilium/issues/16597
+		SkipContextIf(func() bool {
+			return helpers.DoesNotRunOn419OrLaterKernel() ||
+				helpers.RunsOnGKE()
+		}, "Tests ClusterIP with sessionAffinity", func() {
+			BeforeAll(func() {
+				DeployCiliumOptionsAndDNS(kubectl, ciliumFilename, map[string]string{
+					"kubeProxyReplacement": "disabled",
+				})
+			})
+
+			AfterAll(func() {
+				DeployCiliumAndDNS(kubectl, ciliumFilename)
+			})
+
+			It("", func() {
+				testSessionAffinity(kubectl, ni, false, true)
+			})
+		})
+
 		SkipContextIf(helpers.RunsWithKubeProxyReplacement, "Tests NodePort (kube-proxy)", func() {
 			SkipItIf(helpers.DoesNotRunOn419OrLaterKernel, "with IPSec and externalTrafficPolicy=Local", func() {
 				deploymentManager.SetKubectl(kubectl)
