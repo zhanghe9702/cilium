@@ -197,6 +197,7 @@ Name                                         Labels                             
 ``endpoint_regenerations_total``             ``outcome``                                        Count of all endpoint regenerations that have completed
 ``endpoint_regeneration_time_stats_seconds`` ``scope``                                          Endpoint regeneration time stats
 ``endpoint_state``                           ``state``                                          Count of all endpoints
+``endpoint_propagation_delay_seconds``                                                          The create/upate endpoint roundtrip propagation delay
 ============================================ ================================================== ========================================================
 
 Services

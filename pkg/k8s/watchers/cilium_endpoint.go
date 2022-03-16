@@ -6,6 +6,7 @@ package watchers
 import (
 	"net"
 	"sync"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -17,12 +18,16 @@ import (
 	cilium_v2 "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/v2"
 	"github.com/cilium/cilium/pkg/k8s/informer"
 	"github.com/cilium/cilium/pkg/k8s/types"
+	k8sUtils "github.com/cilium/cilium/pkg/k8s/utils"
 	"github.com/cilium/cilium/pkg/kvstore"
+	"github.com/cilium/cilium/pkg/logging/logfields"
+	"github.com/cilium/cilium/pkg/metrics"
 	"github.com/cilium/cilium/pkg/node"
 	"github.com/cilium/cilium/pkg/option"
 	"github.com/cilium/cilium/pkg/policy"
 	"github.com/cilium/cilium/pkg/source"
 	"github.com/cilium/cilium/pkg/u8proto"
+	"github.com/sirupsen/logrus"
 )
 
 func (k *K8sWatcher) ciliumEndpointsInit(ciliumNPClient *k8s.K8sCiliumClient, asyncControllers *sync.WaitGroup) {
@@ -108,7 +113,26 @@ func (k *K8sWatcher) endpointUpdated(oldEndpoint, endpoint *types.CiliumEndpoint
 			k.policyManager.TriggerPolicyUpdates(true, "Named ports added or updated")
 		}
 	}()
+	if oldEndpoint == nil && endpoint != nil {
+		if p := k.endpointManager.LookupPodName(k8sUtils.GetObjNamespaceName(endpoint)); p != nil {
+			timeSinceCepCreated := time.Since(p.GetCreatedAt())
+			metrics.EndpointPropagationDelay.WithLabelValues().Observe(timeSinceCepCreated.Seconds())
+		}
+	} else if oldEndpoint != nil && endpoint != nil {
+		if endpoint.Identity != nil {
+			if p := k.endpointManager.LookupPodName(k8sUtils.GetObjNamespaceName(endpoint)); p != nil {
+				if timeIdentityChanged, ok := p.GetIdentityChangedAt(identity.NumericIdentity(endpoint.Identity.ID).StringID()); ok {
+					metrics.EndpointPropagationDelay.WithLabelValues().Observe(time.Since(timeIdentityChanged).Seconds())
+					if ok := p.CleanIdentityChanged(identity.NumericIdentity(endpoint.Identity.ID).StringID()); ok {
+						log.WithFields(logrus.Fields{
+							logfields.Identity: endpoint.Identity,
+						}).Debug("Succefully update endpoint_propagation_delay_seconds metric.")
 
+					}
+				}
+			}
+		}
+	}
 	var ipsAdded []string
 	if oldEndpoint != nil && oldEndpoint.Networking != nil {
 		// Delete the old IP addresses from the IP cache

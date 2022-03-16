@@ -125,6 +125,10 @@ type Endpoint struct {
 	// recalculated on endpoint restore.
 	createdAt time.Time
 
+	//identityChangeTime store the time the endpoint security identity was changed.
+	// it is used for calculated endpoint progation delay.
+	identityChangeTime map[string]time.Time
+
 	// mutex protects write operations to this endpoint structure
 	mutex lock.RWMutex
 
@@ -453,25 +457,26 @@ func NewEndpointWithState(owner regeneration.Owner, policyGetter policyRepoGette
 
 func createEndpoint(owner regeneration.Owner, policyGetter policyRepoGetter, proxy EndpointProxy, allocator cache.IdentityAllocator, ID uint16, ifName string) *Endpoint {
 	ep := &Endpoint{
-		owner:           owner,
-		policyGetter:    policyGetter,
-		ID:              ID,
-		createdAt:       time.Now(),
-		proxy:           proxy,
-		ifName:          ifName,
-		OpLabels:        labels.NewOpLabels(),
-		DNSRules:        nil,
-		DNSHistory:      fqdn.NewDNSCacheWithLimit(option.Config.ToFQDNsMinTTL, option.Config.ToFQDNsMaxIPsPerHost),
-		DNSZombies:      fqdn.NewDNSZombieMappings(option.Config.ToFQDNsMaxDeferredConnectionDeletes),
-		state:           "",
-		status:          NewEndpointStatus(),
-		hasBPFProgram:   make(chan struct{}, 0),
-		desiredPolicy:   policy.NewEndpointPolicy(policyGetter.GetPolicyRepository()),
-		controllers:     controller.NewManager(),
-		regenFailedChan: make(chan struct{}, 1),
-		allocator:       allocator,
-		logLimiter:      logging.NewLimiter(10*time.Second, 3), // 1 log / 10 secs, burst of 3
-		noTrackPort:     0,
+		owner:              owner,
+		policyGetter:       policyGetter,
+		ID:                 ID,
+		createdAt:          time.Now(),
+		identityChangeTime: make(map[string]time.Time),
+		proxy:              proxy,
+		ifName:             ifName,
+		OpLabels:           labels.NewOpLabels(),
+		DNSRules:           nil,
+		DNSHistory:         fqdn.NewDNSCacheWithLimit(option.Config.ToFQDNsMinTTL, option.Config.ToFQDNsMaxIPsPerHost),
+		DNSZombies:         fqdn.NewDNSZombieMappings(option.Config.ToFQDNsMaxDeferredConnectionDeletes),
+		state:              "",
+		status:             NewEndpointStatus(),
+		hasBPFProgram:      make(chan struct{}, 0),
+		desiredPolicy:      policy.NewEndpointPolicy(policyGetter.GetPolicyRepository()),
+		controllers:        controller.NewManager(),
+		regenFailedChan:    make(chan struct{}, 1),
+		allocator:          allocator,
+		logLimiter:         logging.NewLimiter(10*time.Second, 3), // 1 log / 10 secs, burst of 3
+		noTrackPort:        0,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1941,6 +1946,8 @@ func (e *Endpoint) identityLabelsChanged(ctx context.Context, myChangeRev int) (
 		Debug("Assigned new identity to endpoint")
 
 	e.SetIdentity(allocatedIdentity, false)
+	// Since we has re-locked the endpoint
+	e.identityChangeTime[allocatedIdentity.StringID()] = time.Now()
 
 	if oldIdentity != nil {
 		_, err := e.allocator.Release(releaseCtx, oldIdentity, false)
@@ -2334,4 +2341,25 @@ func (e *Endpoint) setDefaultPolicyConfig() {
 // GetCreatedAt returns the endpoint creation time.
 func (e *Endpoint) GetCreatedAt() time.Time {
 	return e.createdAt
+}
+
+// GetIdentityChangedAt get the identity changed time by ID.
+func (e *Endpoint) GetIdentityChangedAt(ID string) (time.Time, bool) {
+	e.unconditionalRLock()
+	defer e.runlock()
+	if t, ok := e.identityChangeTime[ID]; ok {
+		return t, true
+	}
+	return time.Time{}, false
+}
+
+// CleanIdentityChanged clean the identity changed time by ID.
+func (e *Endpoint) CleanIdentityChanged(ID string) bool {
+	e.unconditionalLock()
+	defer e.unlock()
+	if _, ok := e.identityChangeTime[ID]; ok {
+		delete(e.identityChangeTime, ID)
+		return true
+	}
+	return false
 }

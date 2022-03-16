@@ -238,9 +238,8 @@ var (
 	// endpoints, labeled by span name and status ("success" or "failure")
 	EndpointRegenerationTimeStats = NoOpObserverVec
 
-	// EndpointPropagationDelay is the delay between creation of local CiliumEndpoint
-	// and update for that CiliumEndpoint received through CiliumEndpointSlice.
-	// Measure of local CEP roundtrip time with CiliumEndpointSlice feature enabled.
+	// EndpointPropagationDelay is the propagation delay between creation or updation of local CiliumEndpoint
+	// received through CiliumEndpoints and CiliumEndpointSlice (if endpoint slice feature is enabled).
 	EndpointPropagationDelay = NoOpObserverVec
 
 	// Policy
