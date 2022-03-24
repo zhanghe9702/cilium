@@ -63,6 +63,9 @@ const (
 
 	// CECCRDName is the full name of the CEC CRD.
 	CECCRDName = k8sconstv2alpha1.CECKindDefinition + "/" + k8sconstv2alpha1.CustomResourceDefinitionVersion
+
+	// CEMCRDName is the full name of the CEM CRD.
+	CEMCRDName = k8sconstv2alpha1.CEMKindDefinition + "/" + k8sconstv2alpha1.CustomResourceDefinitionVersion
 )
 
 var (
@@ -90,6 +93,7 @@ func CreateCustomResourceDefinitions(clientset apiextensionsclient.Interface) er
 		synced.CRDResourceName(k8sconstv2alpha1.CENPName): createCENPCRD,
 		synced.CRDResourceName(k8sconstv2alpha1.CESName):  createCESCRD,
 		synced.CRDResourceName(k8sconstv2alpha1.CECName):  createCECCRD,
+		synced.CRDResourceName(k8sconstv2alpha1.CEMName):  createCEMCRD,
 	}
 	for _, r := range synced.AllCRDResourceNames() {
 		fn, ok := resourceToCreateFnMapping[r]
@@ -134,6 +138,9 @@ var (
 
 	//go:embed crds/v2alpha1/ciliumenvoyconfigs.yaml
 	crdsv2Alpha1Ciliumenvoyconfigs []byte
+
+	//go:embed crds/v2alpha1/ciliumenvoymixs.yaml
+	crdsv2Alpha1Ciliumenvoymixs []byte
 )
 
 // GetPregeneratedCRD returns the pregenerated CRD based on the requested CRD
@@ -169,6 +176,8 @@ func GetPregeneratedCRD(crdName string) apiextensionsv1.CustomResourceDefinition
 		crdBytes = crdsv2Alpha1Ciliumendpointslices
 	case CECCRDName:
 		crdBytes = crdsv2Alpha1Ciliumenvoyconfigs
+	case CEMCRDName:
+		crdBytes = crdsv2Alpha1Ciliumenvoymixs
 	default:
 		scopedLog.Fatal("Pregenerated CRD does not exist")
 	}
@@ -305,6 +314,18 @@ func createCECCRD(clientset apiextensionsclient.Interface) error {
 		newDefaultPoller(),
 	)
 }
+
+func createCEMCRD(clientset apiextensionsclient.Interface) error {
+	ciliumCRD := GetPregeneratedCRD(CEMCRDName)
+
+	return createUpdateCRD(
+		clientset,
+		CEMCRDName,
+		constructV1CRD(k8sconstv2alpha1.CEMName, ciliumCRD),
+		newDefaultPoller(),
+	)
+}
+
 
 // createUpdateCRD ensures the CRD object is installed into the K8s cluster. It
 // will create or update the CRD and its validation schema as necessary. This
