@@ -23,6 +23,10 @@ func (c *FakeCiliumV2alpha1) CiliumEndpointSlices() v2alpha1.CiliumEndpointSlice
 	return &FakeCiliumEndpointSlices{c}
 }
 
+func (c *FakeCiliumV2alpha1) CiliumEnvoyMixes() v2alpha1.CiliumEnvoyMixInterface {
+	return &FakeCiliumEnvoyMixes{c}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeCiliumV2alpha1) RESTClient() rest.Interface {

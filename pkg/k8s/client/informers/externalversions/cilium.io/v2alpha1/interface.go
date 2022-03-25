@@ -15,6 +15,8 @@ type Interface interface {
 	CiliumEgressNATPolicies() CiliumEgressNATPolicyInformer
 	// CiliumEndpointSlices returns a CiliumEndpointSliceInformer.
 	CiliumEndpointSlices() CiliumEndpointSliceInformer
+	// CiliumEnvoyMixes returns a CiliumEnvoyMixInformer.
+	CiliumEnvoyMixes() CiliumEnvoyMixInformer
 }
 
 type version struct {
@@ -36,4 +38,9 @@ func (v *version) CiliumEgressNATPolicies() CiliumEgressNATPolicyInformer {
 // CiliumEndpointSlices returns a CiliumEndpointSliceInformer.
 func (v *version) CiliumEndpointSlices() CiliumEndpointSliceInformer {
 	return &ciliumEndpointSliceInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// CiliumEnvoyMixes returns a CiliumEnvoyMixInformer.
+func (v *version) CiliumEnvoyMixes() CiliumEnvoyMixInformer {
+	return &ciliumEnvoyMixInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
