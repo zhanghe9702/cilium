@@ -145,7 +145,7 @@ func StartProxySupport(minPort uint16, maxPort uint16, stateDir string,
 		logger.SetMetadata(accessLogMetadata)
 	}
 
-	envoy.StartAccessLogServer(stateDir, xdsServer, eir)
+	envoy.StartAccessLogServer(stateDir, xdsServer)
 
 	return &Proxy{
 		XDSServer:       xdsServer,

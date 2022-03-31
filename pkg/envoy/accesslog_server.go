@@ -30,11 +30,10 @@ func getAccessLogPath(stateDir string) string {
 
 type accessLogServer struct {
 	xdsServer *XDSServer
-	endpointInfoRegistry logger.EndpointInfoRegistry
 }
 
 // StartAccessLogServer starts the access log server.
-func StartAccessLogServer(stateDir string, xdsServer *XDSServer, endpointInfoRegistry logger.EndpointInfoRegistry) {
+func StartAccessLogServer(stateDir string, xdsServer *XDSServer) {
 	accessLogPath := getAccessLogPath(stateDir)
 
 	// Create the access log listener
@@ -53,7 +52,6 @@ func StartAccessLogServer(stateDir string, xdsServer *XDSServer, endpointInfoReg
 
 	server := accessLogServer{
 		xdsServer: xdsServer,
-		endpointInfoRegistry: endpointInfoRegistry,
 	}
 
 	go func() {
