@@ -376,6 +376,7 @@ func (k *K8sWatcher) resourceGroups() []string {
 		synced.CRDResourceName(v2.CEWName):        "SKIP", // Handled in clustermesh-apiserver/
 		synced.CRDResourceName(v2alpha1.CENPName): k8sAPIGroupCiliumEgressNATPolicyV2,
 		synced.CRDResourceName(v2alpha1.CESName):  k8sAPIGroupCiliumEndpointSliceV2Alpha1,
+		synced.CRDResourceName(v2alpha1.CECName):  k8sAPIGroupCiliumEnvoyConfigV2Alpha1,
 	}
 	ciliumResources := synced.AgentCRDResourceNames()
 	ciliumGroups := make([]string, 0, len(ciliumResources))
@@ -491,6 +492,8 @@ func (k *K8sWatcher) EnableK8sWatcher(ctx context.Context, resources []string) e
 			k.ciliumLocalRedirectPolicyInit(ciliumNPClient)
 		case k8sAPIGroupCiliumEgressNATPolicyV2:
 			k.ciliumEgressNATPolicyInit(ciliumNPClient)
+		case k8sAPIGroupCiliumEnvoyConfigV2Alpha1:
+			k.ciliumEnvoyConfigInit(ciliumNPClient)
 		default:
 			log.WithFields(logrus.Fields{
 				logfields.Resource: r,

@@ -182,6 +182,7 @@ func NewService(monitorNotify monitorNotify) *Service {
 		monitorNotify:   monitorNotify,
 		healthServer:    localHealthServer,
 		lbmap:           lbmap.New(maglev, maglevTableSize),
+		l7lbSvcs:        map[string]*L7LBInfo{},
 	}
 	svc.lastUpdatedTs.Store(time.Now())
 	return svc

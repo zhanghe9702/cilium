@@ -184,26 +184,65 @@ func StartXDSServer(ipcache *ipcache.IPCache, stateDir string) *XDSServer {
 		AckObserver: ldsMutator,
 	}
 
+	rdsCache := xds.NewCache()
+	rdsMutator := xds.NewAckingResourceMutatorWrapper(rdsCache)
+	rdsConfig := &xds.ResourceTypeConfiguration{
+		Source:      rdsCache,
+		AckObserver: rdsMutator,
+	}
+
+	cdsCache := xds.NewCache()
+	cdsMutator := xds.NewAckingResourceMutatorWrapper(cdsCache)
+	cdsConfig := &xds.ResourceTypeConfiguration{
+		Source:      cdsCache,
+		AckObserver: cdsMutator,
+	}
+
+	edsCache := xds.NewCache()
+	edsMutator := xds.NewAckingResourceMutatorWrapper(edsCache)
+	edsConfig := &xds.ResourceTypeConfiguration{
+		Source:      edsCache,
+		AckObserver: edsMutator,
+	}
+
+	sdsCache := xds.NewCache()
+	sdsMutator := xds.NewAckingResourceMutatorWrapper(sdsCache)
+	sdsConfig := &xds.ResourceTypeConfiguration{
+		Source:      sdsCache,
+		AckObserver: sdsMutator,
+	}
+
 	npdsCache := xds.NewCache()
 	npdsMutator := xds.NewAckingResourceMutatorWrapper(npdsCache)
 	npdsConfig := &xds.ResourceTypeConfiguration{
 		Source:      npdsCache,
 		AckObserver: npdsMutator,
 	}
-
 	nphdsCache := newNPHDSCache(ipcache)
 	nphdsConfig := &xds.ResourceTypeConfiguration{
-		Source:      nphdsCache,
+		Source:      nphdsCache.Cache,
 		AckObserver: &nphdsCache,
 	}
 
-	stopServer := startXDSGRPCServer(socketListener, ldsConfig, npdsConfig, nphdsConfig, 5*time.Second)
+	stopServer := startXDSGRPCServer(socketListener, map[string]*xds.ResourceTypeConfiguration{
+		ListenerTypeURL:           ldsConfig,
+		RouteTypeURL:              rdsConfig,
+		ClusterTypeURL:            cdsConfig,
+		EndpointTypeURL:           edsConfig,
+		SecretTypeURL:             sdsConfig,
+		NetworkPolicyTypeURL:      npdsConfig,
+		NetworkPolicyHostsTypeURL: nphdsConfig,
+	}, 5*time.Second)
 
 	return &XDSServer{
 		socketPath:             xdsPath,
 		accessLogPath:          getAccessLogPath(stateDir),
 		listenerMutator:        ldsMutator,
 		listeners:              make(map[string]*Listener),
+		routeMutator:           rdsMutator,
+		clusterMutator:         cdsMutator,
+		endpointMutator:        edsMutator,
+		secretMutator:          sdsMutator,
 		networkPolicyCache:     npdsCache,
 		NetworkPolicyMutator:   npdsMutator,
 		networkPolicyEndpoints: make(map[string]logger.EndpointUpdater),
