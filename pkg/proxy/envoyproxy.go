@@ -12,6 +12,7 @@ import (
 	"github.com/cilium/cilium/pkg/envoy"
 	"github.com/cilium/cilium/pkg/logging/logfields"
 	"github.com/cilium/cilium/pkg/option"
+	"github.com/cilium/cilium/pkg/policy"
 	"github.com/cilium/cilium/pkg/revert"
 )
 
@@ -51,7 +52,7 @@ func createEnvoyRedirect(r *Redirect, stateDir string, xdsServer *envoy.XDSServe
 		if l.ingress {
 			mayUseOriginalSourceAddr = false
 		}
-		xdsServer.AddListener(redir.listenerName, l.parserType, l.proxyPort, l.ingress,
+		xdsServer.AddListener(redir.listenerName, policy.L7ParserType(l.proxyType), l.proxyPort, l.ingress,
 			mayUseOriginalSourceAddr, wg)
 
 		return redir, nil

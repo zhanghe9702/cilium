@@ -519,6 +519,7 @@ func NewDaemon(ctx context.Context, cancel context.CancelFunc, epMgr *endpointma
 		d.redirectPolicyManager,
 		d.bgpSpeaker,
 		d.egressGatewayManager,
+		d.l7Proxy,
 		option.Config,
 		d.ipcache,
 	)

@@ -950,6 +950,9 @@ const (
 	// K8sEnableAPIDiscovery enables Kubernetes API discovery
 	K8sEnableAPIDiscovery = "enable-k8s-api-discovery"
 
+	// EnvoyConfigTimeout determines how long to wait Envoy to N/ACK resources
+	EnvoyConfigTimeout = "envoy-config-timeout"
+
 	// LBMapEntriesName configures max entries for BPF lbmap.
 	LBMapEntriesName = "bpf-lb-map-max"
 
@@ -1254,7 +1257,7 @@ type DaemonConfig struct {
 
 	// RestoreState enables restoring the state from previous running daemons.
 	RestoreState bool
-
+	EnvoyConfigTimeout         time.Duration
 	// EnableHostIPRestore enables restoring the host IPs based on state
 	// left behind by previous Cilium runs.
 	EnableHostIPRestore bool
@@ -2687,6 +2690,7 @@ func (c *DaemonConfig) Populate() {
 	c.EnableIPv4EgressGateway = viper.GetBool(EnableIPv4EgressGateway)
 	c.IPMasqAgentConfigPath = viper.GetString(IPMasqAgentConfigPath)
 	c.InstallIptRules = viper.GetBool(InstallIptRules)
+	c.EnvoyConfigTimeout = viper.GetDuration(EnvoyConfigTimeout)
 	c.IPTablesLockTimeout = viper.GetDuration(IPTablesLockTimeout)
 	c.IPTablesRandomFully = viper.GetBool(IPTablesRandomFully)
 	c.IPSecKeyFile = viper.GetString(IPSecKeyFileName)

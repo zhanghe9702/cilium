@@ -26,6 +26,7 @@ import (
 	envoy_config_tcp "github.com/cilium/proxy/go/envoy/extensions/filters/network/tcp_proxy/v3"
 	envoy_config_upstream "github.com/cilium/proxy/go/envoy/extensions/upstreams/http/v3"
 	envoy_type_matcher "github.com/cilium/proxy/go/envoy/type/matcher/v3"
+	envoy_config_tls "github.com/cilium/proxy/go/envoy/extensions/transport_sockets/tls/v3"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -98,6 +99,22 @@ type XDSServer struct {
 	// mutex protects accesses to the configuration resources below.
 	mutex lock.RWMutex
 
+
+	// routeMutator publishes route updates to Envoy proxies.
+	// Manages it's own locking
+	routeMutator xds.AckingResourceMutator
+
+	// clusterMutator publishes cluster updates to Envoy proxies.
+	// Manages it's own locking
+	clusterMutator xds.AckingResourceMutator
+
+	// endpointMutator publishes endpoint updates to Envoy proxies.
+	// Manages it's own locking
+	endpointMutator xds.AckingResourceMutator
+
+	// secretMutator publishes secret updates to Envoy proxies.
+	// Manages it's own locking
+	secretMutator xds.AckingResourceMutator
 	// listenerMutator publishes listener updates to Envoy proxies.
 	// Manages it's own locking
 	listenerMutator xds.AckingResourceMutator
@@ -1571,4 +1588,150 @@ func (s *XDSServer) getLocalEndpoint(networkPolicyName string) logger.EndpointUp
 	defer s.mutex.RUnlock()
 
 	return s.networkPolicyEndpoints[networkPolicyName]
+}
+
+
+func getListenerFilter(isIngress bool, mayUseOriginalSourceAddr bool, l7lb bool) *envoy_config_listener.ListenerFilter {
+	return &envoy_config_listener.ListenerFilter{
+		Name: "cilium.bpf_metadata",
+		ConfigType: &envoy_config_listener.ListenerFilter_TypedConfig{
+			TypedConfig: toAny(&cilium.BpfMetadata{
+				IsIngress:                   isIngress,
+				MayUseOriginalSourceAddress: mayUseOriginalSourceAddr,
+				BpfRoot:                     bpf.GetMapRoot(),
+				EgressMarkSourceEndpointId:  l7lb,
+			}),
+		},
+	}
+}
+
+
+func getListenerSocketMarkOption(isIngress bool) *envoy_config_core.SocketOption {
+	socketMark := int64(0xB00)
+	if isIngress {
+		socketMark = 0xA00
+	}
+	return &envoy_config_core.SocketOption{
+		Description: "Listener socket mark",
+		Level:       unix.SOL_SOCKET,
+		Name:        unix.SO_MARK,
+		Value:       &envoy_config_core.SocketOption_IntValue{IntValue: socketMark},
+		State:       envoy_config_core.SocketOption_STATE_PREBIND,
+	}
+}
+
+var ciliumXDS = &envoy_config_core.ConfigSource{
+	ResourceApiVersion: envoy_config_core.ApiVersion_V3,
+	ConfigSourceSpecifier: &envoy_config_core.ConfigSource_ApiConfigSource{
+		ApiConfigSource: &envoy_config_core.ApiConfigSource{
+			ApiType:                   envoy_config_core.ApiConfigSource_GRPC,
+			TransportApiVersion:       envoy_config_core.ApiVersion_V3,
+			SetNodeOnFirstMessageOnly: true,
+			GrpcServices: []*envoy_config_core.GrpcService{
+				{
+					TargetSpecifier: &envoy_config_core.GrpcService_EnvoyGrpc_{
+						EnvoyGrpc: &envoy_config_core.GrpcService_EnvoyGrpc{
+							ClusterName: "xds-grpc-cilium",
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
+func getListenerAddress(port uint16, ipv4, ipv6 bool) *envoy_config_core.Address {
+	listenerAddr := "0.0.0.0"
+	if ipv6 {
+		listenerAddr = "::"
+	}
+	return &envoy_config_core.Address{
+		Address: &envoy_config_core.Address_SocketAddress{
+			SocketAddress: &envoy_config_core.SocketAddress{
+				Protocol:      envoy_config_core.SocketAddress_TCP,
+				Address:       listenerAddr,
+				Ipv4Compat:    ipv4 && ipv6,
+				PortSpecifier: &envoy_config_core.SocketAddress_PortValue{PortValue: uint32(port)},
+			},
+		},
+	}
+}
+
+// upsertSecret either updates an existing SDS secret with 'name', or creates a new one.
+func (s *XDSServer) upsertSecret(name string, conf *envoy_config_tls.Secret, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.secretMutator.Upsert(SecretTypeURL, name, conf, []string{"127.0.0.1"}, wg, callback)
+}
+
+// upsertEndpoint either updates an existing EDS endpoint with 'name', or creates a new one.
+func (s *XDSServer) upsertEndpoint(name string, conf *envoy_config_endpoint.ClusterLoadAssignment, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.endpointMutator.Upsert(EndpointTypeURL, name, conf, []string{"127.0.0.1"}, wg, callback)
+}
+
+// deleteListener deletes an LDS Envoy Listener.
+func (s *XDSServer) deleteListener(name string, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.listenerMutator.Delete(ListenerTypeURL, name, []string{"127.0.0.1"}, wg, callback)
+}
+
+// upsertCluster either updates an existing CDS cluster with 'name', or creates a new one.
+func (s *XDSServer) upsertCluster(name string, conf *envoy_config_cluster.Cluster, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.clusterMutator.Upsert(ClusterTypeURL, name, conf, []string{"127.0.0.1"}, wg, callback)
+}
+
+// upsertRoute either updates an existing RDS route with 'name', or creates a new one.
+func (s *XDSServer) upsertRoute(name string, conf *envoy_config_route.RouteConfiguration, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.routeMutator.Upsert(RouteTypeURL, name, conf, []string{"127.0.0.1"}, wg, callback)
+}
+
+// upsertListener either updates an existing LDS listener with 'name', or creates a new one.
+func (s *XDSServer) upsertListener(name string, listenerConf *envoy_config_listener.Listener, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.listenerMutator.Upsert(ListenerTypeURL, name, listenerConf, []string{"127.0.0.1"}, wg, callback)
+}
+
+// deleteRoute deletes an RDS Route.
+func (s *XDSServer) deleteRoute(name string, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.routeMutator.Delete(RouteTypeURL, name, []string{"127.0.0.1"}, wg, callback)
+}
+
+// deleteCluster deletes an CDS cluster.
+func (s *XDSServer) deleteCluster(name string, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.clusterMutator.Delete(ClusterTypeURL, name, []string{"127.0.0.1"}, wg, callback)
+}
+// deleteEndpoint deletes an EDS endpoint.
+func (s *XDSServer) deleteEndpoint(name string, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.endpointMutator.Delete(EndpointTypeURL, name, []string{"127.0.0.1"}, wg, callback)
+}
+
+// deleteSecret deletes an SDS secret.
+func (s *XDSServer) deleteSecret(name string, wg *completion.WaitGroup, callback func(error)) xds.AckingResourceMutatorRevertFunc {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	// 'callback' is not called if there is no change and this configuration has already been acked.
+	return s.secretMutator.Delete(SecretTypeURL, name, []string{"127.0.0.1"}, wg, callback)
 }

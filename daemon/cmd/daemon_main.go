@@ -464,6 +464,9 @@ func initializeFlags() {
 	flags.String(option.IdentityAllocationMode, option.IdentityAllocationModeKVstore, "Method to use for identity allocation")
 	option.BindEnv(option.IdentityAllocationMode)
 
+	flags.Duration(option.EnvoyConfigTimeout, defaults.EnvoyConfigTimeout, "Timeout duration for Envoy Config acknowledgements")
+	option.BindEnv(option.EnvoyConfigTimeout)
+	
 	flags.String(option.IPAM, ipamOption.IPAMClusterPool, "Backend to use for IPAM")
 	option.BindEnv(option.IPAM)
 
