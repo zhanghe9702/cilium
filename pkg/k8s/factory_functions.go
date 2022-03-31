@@ -894,6 +894,51 @@ func ObjToCENP(obj interface{}) *cilium_v2alpha1.CiliumEgressNATPolicy {
 	return nil
 }
 
+// ConvertToCiliumEnvoyConfig converts a *cilium_v2alpha1.CiliumEnvoyConfig into a
+// *cilium_v2alpha1.CiliumEnvoyConfig or a cache.DeletedFinalStateUnknown into
+// a cache.DeletedFinalStateUnknown with a *cilium_v2alpha1.CiliumEnvoyConfig in its Obj.
+// If the given obj can't be cast into either *cilium_v2alpha1.CiliumEnvoyConfig
+// nor cache.DeletedFinalStateUnknown, the original obj is returned.
+func ConvertToCiliumEnvoyConfig(obj interface{}) interface{} {
+	switch concreteObj := obj.(type) {
+	case *cilium_v2alpha1.CiliumEnvoyConfig:
+		return concreteObj
+	case cache.DeletedFinalStateUnknown:
+		ciliumEnvoyConfig, ok := concreteObj.Obj.(*cilium_v2alpha1.CiliumEnvoyConfig)
+		if !ok {
+			return obj
+		}
+		return cache.DeletedFinalStateUnknown{
+			Key: concreteObj.Key,
+			Obj: ciliumEnvoyConfig,
+		}
+	default:
+		return obj
+	}
+}
+
+// ObjToCEC attempts to cast object to a CEC object and
+// returns the object if the cast succeeds. Otherwise, nil is returned.
+func ObjToCEC(obj interface{}) *cilium_v2alpha1.CiliumEnvoyConfig {
+	cec, ok := obj.(*cilium_v2alpha1.CiliumEnvoyConfig)
+	if ok {
+		return cec
+	}
+	deletedObj, ok := obj.(cache.DeletedFinalStateUnknown)
+	if ok {
+		// Delete was not observed by the watcher but is
+		// removed from kube-apiserver. This is the last
+		// known state and the object no longer exists.
+		cec, ok := deletedObj.Obj.(*cilium_v2alpha1.CiliumEnvoyConfig)
+		if ok {
+			return cec
+		}
+	}
+	log.WithField(logfields.Object, logfields.Repr(obj)).
+		Warn("Ignoring invalid v2 Cilium Envoy Config")
+	return nil
+}
+
 // ObjToCiliumEndpointSlice attempts to cast object to a CiliumEndpointSlice object
 // and returns a deep copy if the castin succeeds. Otherwise, nil is returned.
 func ObjToCiliumEndpointSlice(obj interface{}) *cilium_v2alpha1.CiliumEndpointSlice {

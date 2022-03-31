@@ -25,6 +25,7 @@ import (
 	"github.com/cilium/cilium/pkg/datapath"
 	"github.com/cilium/cilium/pkg/egressgateway"
 	"github.com/cilium/cilium/pkg/endpoint"
+	"github.com/cilium/cilium/pkg/envoy"
 	"github.com/cilium/cilium/pkg/ip"
 	"github.com/cilium/cilium/pkg/ipcache"
 	"github.com/cilium/cilium/pkg/k8s"
@@ -64,6 +65,7 @@ const (
 	k8sAPIGroupCiliumEndpointV2                 = "cilium/v2::CiliumEndpoint"
 	k8sAPIGroupCiliumLocalRedirectPolicyV2      = "cilium/v2::CiliumLocalRedirectPolicy"
 	k8sAPIGroupCiliumEgressNATPolicyV2          = "cilium/v2::CiliumEgressNATPolicy"
+	k8sAPIGroupCiliumEnvoyConfigV2Alpha1        = "cilium/v2alpha1::CiliumEnvoyConfig"
 	k8sAPIGroupCiliumEndpointSliceV2Alpha1      = "cilium/v2alpha1::CiliumEndpointSlice"
 	K8sAPIGroupEndpointSliceV1Beta1Discovery    = "discovery/v1beta1::EndpointSlice"
 	K8sAPIGroupEndpointSliceV1Discovery         = "discovery/v1::EndpointSlice"
@@ -78,6 +80,7 @@ const (
 	metricCiliumEndpoint = "CiliumEndpoint"
 	metricCLRP           = "CiliumLocalRedirectPolicy"
 	metricCENP           = "CiliumEgressNATPolicy"
+	metricCEC            = "CiliumEnvoyConfig"
 	metricPod            = "Pod"
 	metricNode           = "Node"
 	metricService        = "Service"
@@ -111,6 +114,16 @@ var (
 	}
 )
 
+type envoyConfigManager interface {
+	UpsertEnvoyResources(context.Context, envoy.Resources, envoy.PortAllocator) error
+	UpdateEnvoyResources(ctx context.Context, old, new envoy.Resources, portAllocator envoy.PortAllocator) error
+	DeleteEnvoyResources(context.Context, envoy.Resources, envoy.PortAllocator) error
+
+	// envoy.PortAllocator
+	AllocateProxyPort(name string, ingress bool) (uint16, error)
+	AckProxyPort(name string) error
+	ReleaseProxyPort(name string) error
+}
 type endpointManager interface {
 	GetEndpoints() []*endpoint.Endpoint
 	GetHostEndpoint() *endpoint.Endpoint
@@ -139,6 +152,8 @@ type policyRepository interface {
 type svcManager interface {
 	DeleteService(frontend loadbalancer.L3n4Addr) (bool, error)
 	UpsertService(*loadbalancer.SVC) (bool, loadbalancer.ID, error)
+	RegisterL7LBService(name, namespace string, resourceName string, proxyPort uint16) error
+	RemoveL7LBService(name, namespace string, resourceName string) error
 }
 
 type redirectPolicyManager interface {
@@ -202,6 +217,7 @@ type K8sWatcher struct {
 	redirectPolicyManager redirectPolicyManager
 	bgpSpeakerManager     bgpSpeakerManager
 	egressGatewayManager  egressGatewayManager
+	envoyConfigManager    envoyConfigManager
 	ipcache               *ipcache.IPCache
 
 	// controllersStarted is a channel that is closed when all controllers, i.e.,
@@ -240,6 +256,7 @@ func NewK8sWatcher(
 	redirectPolicyManager redirectPolicyManager,
 	bgpSpeakerManager bgpSpeakerManager,
 	egressGatewayManager egressGatewayManager,
+	envoyConfigManager envoyConfigManager,
 	cfg WatcherConfiguration,
 	ipcache *ipcache.IPCache,
 ) *K8sWatcher {
@@ -258,6 +275,7 @@ func NewK8sWatcher(
 		redirectPolicyManager: redirectPolicyManager,
 		bgpSpeakerManager:     bgpSpeakerManager,
 		egressGatewayManager:  egressGatewayManager,
+		envoyConfigManager:     envoyConfigManager,
 		NodeChain:             subscriber.NewNodeChain(),
 		CiliumNodeChain:       subscriber.NewCiliumNodeChain(),
 		cfg:                   cfg,

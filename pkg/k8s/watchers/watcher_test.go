@@ -168,6 +168,13 @@ func (f *fakeSvcManager) UpsertService(p *loadbalancer.SVC) (bool, loadbalancer.
 	panic("OnUpsertService() was called and is not set!")
 }
 
+func (f *fakeSvcManager) RegisterL7LBService(name, namespace string, resourceName string, proxyPort uint16) error {
+	return nil
+}
+
+func (f *fakeSvcManager) RemoveL7LBService(name, namespace string, resourceName string) error {
+	return nil
+}
 func (s *K8sWatcherSuite) TestUpdateToServiceEndpointsGH9525(c *C) {
 
 	ep1stApply := &slim_corev1.Endpoints{
@@ -229,6 +236,7 @@ func (s *K8sWatcherSuite) TestUpdateToServiceEndpointsGH9525(c *C) {
 		policyRepository,
 		nil,
 		fakeDatapath.NewDatapath(),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -539,6 +547,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ClusterIP(c *C) {
 		nil,
 		nil,
 		nil,
+		nil,
 		&fakeWatcherConfiguration{},
 		ipcache.NewIPCache(nil),
 	)
@@ -680,6 +689,7 @@ func (s *K8sWatcherSuite) TestChangeSVCPort(c *C) {
 		policyRepository,
 		svcManager,
 		fakeDatapath.NewDatapath(),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -1133,6 +1143,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_NodePort(c *C) {
 		nil,
 		nil,
 		nil,
+		nil,
 		&fakeWatcherConfiguration{},
 		ipcache.NewIPCache(nil),
 	)
@@ -1430,6 +1441,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_1(c *C) {
 		nil,
 		nil,
 		nil,
+		nil,
 		&fakeWatcherConfiguration{},
 		ipcache.NewIPCache(nil),
 	)
@@ -1717,6 +1729,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_GH9576_2(c *C) {
 		policyRepository,
 		svcManager,
 		fakeDatapath.NewDatapath(),
+		nil,
 		nil,
 		nil,
 		nil,
@@ -2572,6 +2585,7 @@ func (s *K8sWatcherSuite) Test_addK8sSVCs_ExternalIPs(c *C) {
 		policyRepository,
 		svcManager,
 		fakeDatapath.NewDatapath(),
+		nil,
 		nil,
 		nil,
 		nil,
