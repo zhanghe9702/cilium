@@ -723,7 +723,7 @@ func (s *SSHMeta) ValidateEndpointsAreCorrect(dockerNetwork string) error {
 }
 
 // ValidateNoErrorsInLogs checks in cilium logs since the given duration (By
-// default `CurrentGinkgoTestDescription().Duration`) do not contain `panic`,
+// default `CurrentSpecReport().RunTime`) do not contain `panic`,
 // `deadlocks` or `segmentation faults` messages . In case of any of these
 // messages, it'll mark the test as failed.
 func (s *SSHMeta) ValidateNoErrorsInLogs(duration time.Duration) {

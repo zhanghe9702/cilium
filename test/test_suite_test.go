@@ -13,8 +13,7 @@ import (
 	"time"
 
 	gops "github.com/google/gops/agent"
-	"github.com/onsi/ginkgo"
-	ginkgoconfig "github.com/onsi/ginkgo/config"
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"
 	"github.com/sirupsen/logrus"
@@ -94,16 +93,18 @@ func TestTest(t *testing.T) {
 	} else {
 		RegisterFailHandler(Fail)
 	}
-	junitReporter := NewJUnitReporter(fmt.Sprintf(
-		"%s.xml", helpers.GetScopeWithVersion()))
-	RunSpecsWithDefaultAndCustomReporters(
+	suiteConfig, reporterConfig := ginkgo.GinkgoConfiguration()
+	reporterConfig.JUnitReport = fmt.Sprintf(
+		"%s.xml", helpers.GetScopeWithVersion())
+	// https://onsi.github.io/ginkgo/MIGRATING_TO_V2#removed-custom-reporters
+	RunSpecs(
 		t, fmt.Sprintf("Suite-%s", helpers.GetScopeWithVersion()),
-		[]ginkgo.Reporter{junitReporter})
+		suiteConfig, reporterConfig)
 }
 
 func goReportSetupStatus() chan bool {
-	if ginkgoconfig.DefaultReporterConfig.Verbose ||
-		ginkgoconfig.DefaultReporterConfig.Succinct {
+	_, reporterConfig := ginkgo.GinkgoConfiguration()
+	if reporterConfig.Verbose || reporterConfig.Succinct {
 		// Dev told us they want more/less information than default. Skip.
 		return nil
 	}

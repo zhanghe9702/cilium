@@ -91,12 +91,18 @@ var _ = Describe("BenchmarkNetperfPerformance", func() {
 	})
 
 	AfterEach(func() {
-		LogPerm := os.FileMode(0666)
-		testPath, err := helpers.CreateReportDirectory()
-		Expect(err).Should(BeNil(), "cannot create log file")
-		helpers.WriteOrAppendToFile(filepath.Join(testPath, PerfLogFile), PerfLogWriter.Bytes(), LogPerm)
-		PerfLogWriter.Reset()
-	}, 500)
+		done := make(chan interface{})
+		go func() {
+			LogPerm := os.FileMode(0666)
+			testPath, err := helpers.CreateReportDirectory()
+			Expect(err).Should(BeNil(), "cannot create log file")
+			helpers.WriteOrAppendToFile(filepath.Join(testPath, PerfLogFile), PerfLogWriter.Bytes(), LogPerm)
+			PerfLogWriter.Reset()
+			close(done)
+
+		}()
+		Eventually(done, 500).Should(BeClosed())
+	})
 
 	AfterAll(func() {
 		vm.CloseSSHClient()
@@ -144,68 +150,148 @@ var _ = Describe("BenchmarkNetperfPerformance", func() {
 		})
 
 		It("Test L4 Netperf TCP_RR Performance lo:1", func() {
-			superNetperfRRLog(helpers.Server, helpers.Server, 1)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Server, helpers.Server, 1)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance lo:10", func() {
-			superNetperfRRLog(helpers.Server, helpers.Server, 10)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Server, helpers.Server, 10)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf Performance lo:100", func() {
-			superNetperfRRLog(helpers.Server, helpers.Server, 100)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Server, helpers.Server, 100)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance lo:1000", func() {
-			superNetperfRRLog(helpers.Server, helpers.Server, 1000)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Server, helpers.Server, 1000)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance inter-container:1", func() {
-			superNetperfRRLog(helpers.Client, helpers.Server, 1)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Client, helpers.Server, 1)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance inter-container:10", func() {
-			superNetperfRRLog(helpers.Client, helpers.Server, 10)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Client, helpers.Server, 10)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance inter-container:100", func() {
-			superNetperfRRLog(helpers.Client, helpers.Server, 100)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Client, helpers.Server, 100)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance inter-container:1000", func() {
-			superNetperfRRLog(helpers.Client, helpers.Server, 1000)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Client, helpers.Server, 1000)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance lo:1", func() {
-			superNetperfStreamLog(helpers.Server, helpers.Server, 1)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Server, helpers.Server, 1)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance lo:10", func() {
-			superNetperfStreamLog(helpers.Server, helpers.Server, 10)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Server, helpers.Server, 10)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance lo:100", func() {
-			superNetperfStreamLog(helpers.Server, helpers.Server, 100)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Server, helpers.Server, 100)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance lo:1000", func() {
-			superNetperfStreamLog(helpers.Server, helpers.Server, 1000)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Server, helpers.Server, 1000)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance lo:1", func() {
-			superNetperfStreamLog(helpers.Client, helpers.Server, 1)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Client, helpers.Server, 1)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance lo:10", func() {
-			superNetperfStreamLog(helpers.Client, helpers.Server, 10)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Client, helpers.Server, 10)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance lo:100", func() {
-			superNetperfStreamLog(helpers.Client, helpers.Server, 100)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Client, helpers.Server, 100)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance lo:1000", func() {
-			superNetperfStreamLog(helpers.Client, helpers.Server, 1000)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Client, helpers.Server, 1000)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 	})
 
 	Context("Benchmark Netperf Tests Sockops-Enabled", func() {
@@ -220,67 +306,147 @@ var _ = Describe("BenchmarkNetperfPerformance", func() {
 		})
 
 		It("Test L4 Netperf TCP_RR Performance Sockops lo:1", func() {
-			superNetperfRRLog(helpers.Server, helpers.Server, 1)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Server, helpers.Server, 1)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance Sockops lo:10", func() {
-			superNetperfRRLog(helpers.Server, helpers.Server, 10)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Server, helpers.Server, 10)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance Sockops lo:100", func() {
-			superNetperfRRLog(helpers.Server, helpers.Server, 100)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Server, helpers.Server, 100)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance Sockops lo:1000", func() {
-			superNetperfRRLog(helpers.Server, helpers.Server, 1000)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Server, helpers.Server, 1000)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance Sockops inter-container:1", func() {
-			superNetperfRRLog(helpers.Client, helpers.Server, 1)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Client, helpers.Server, 1)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance Sockops inter-container:10", func() {
-			superNetperfRRLog(helpers.Client, helpers.Server, 10)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Client, helpers.Server, 10)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance Sockops inter-container:100", func() {
-			superNetperfRRLog(helpers.Client, helpers.Server, 100)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Client, helpers.Server, 100)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_RR Performance Sockops inter-container:1000", func() {
-			superNetperfRRLog(helpers.Client, helpers.Server, 1000)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfRRLog(helpers.Client, helpers.Server, 1000)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance Sockops lo:1", func() {
-			superNetperfStreamLog(helpers.Server, helpers.Server, 1)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Server, helpers.Server, 1)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance Sockops lo:10", func() {
-			superNetperfStreamLog(helpers.Server, helpers.Server, 10)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Server, helpers.Server, 10)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance Sockops lo:100", func() {
-			superNetperfStreamLog(helpers.Server, helpers.Server, 100)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Server, helpers.Server, 100)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance Sockops lo:1000", func() {
-			superNetperfStreamLog(helpers.Server, helpers.Server, 1000)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Server, helpers.Server, 1000)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance Sockops lo:1", func() {
-			superNetperfStreamLog(helpers.Client, helpers.Server, 1)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Client, helpers.Server, 1)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance Sockops lo:10", func() {
-			superNetperfStreamLog(helpers.Client, helpers.Server, 10)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Client, helpers.Server, 10)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance Sockops lo:100", func() {
-			superNetperfStreamLog(helpers.Client, helpers.Server, 100)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Client, helpers.Server, 100)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 
 		It("Test L4 Netperf TCP_STREAM Performance Sockops lo:1000", func() {
-			superNetperfStreamLog(helpers.Client, helpers.Server, 1000)
-		}, 300)
+			done := make(chan interface{})
+			go func() {
+				superNetperfStreamLog(helpers.Client, helpers.Server, 1000)
+				close(done)
+			}()
+			Eventually(done, 300).Should(BeClosed())
+		})
 	})
 })

@@ -52,7 +52,7 @@ var _ = Describe("K8sDatapathConfig", func() {
 	})
 
 	JustAfterEach(func() {
-		kubectl.ValidateNoErrorsInLogs(CurrentGinkgoTestDescription().Duration)
+		kubectl.ValidateNoErrorsInLogs(CurrentSpecReport().RunTime)
 	})
 
 	deployNetperf := func() string {
@@ -203,36 +203,53 @@ var _ = Describe("K8sDatapathConfig", func() {
 			// We also can't disable KPR on GKE at the moment (cf. #16597).
 			return helpers.RunsWithoutKubeProxy() || helpers.DoesNotRunOn419OrLaterKernel() || helpers.RunsOnGKE()
 		}, "Check connectivity with transparent encryption and VXLAN encapsulation", func() {
-			deploymentManager.Deploy(helpers.CiliumNamespace, IPSecSecret)
-			options := map[string]string{
-				"kubeProxyReplacement": "disabled",
-				"encryption.enabled":   "true",
-			}
-			enableVXLANTunneling(options)
-			deploymentManager.DeployCilium(options, DeployCiliumOptionsAndDNS)
-			validateBPFTunnelMap()
-			Expect(testPodConnectivityAcrossNodes(kubectl)).Should(BeTrue(), "Connectivity test with IPsec between nodes failed")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.Deploy(helpers.CiliumNamespace, IPSecSecret)
+				options := map[string]string{
+					"kubeProxyReplacement": "disabled",
+					"encryption.enabled":   "true",
+				}
+				enableVXLANTunneling(options)
+				deploymentManager.DeployCilium(options, DeployCiliumOptionsAndDNS)
+				validateBPFTunnelMap()
+				Expect(testPodConnectivityAcrossNodes(kubectl)).Should(BeTrue(), "Connectivity test with IPsec between nodes failed")
+
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		// Sockops should work on 4.19, but currently fails. See #16418 for details.
 		SkipItIf(helpers.DoesNotRunOn54OrLaterKernel, "Check connectivity with sockops and VXLAN encapsulation", func() {
-			options := map[string]string{
-				"sockops.enabled": "true",
-			}
-			enableVXLANTunneling(options)
-			deploymentManager.DeployCilium(options, DeployCiliumOptionsAndDNS)
-			validateBPFTunnelMap()
-			Expect(testPodConnectivityAcrossNodes(kubectl)).Should(BeTrue(), "Connectivity test between nodes failed")
-			Expect(testPodConnectivitySameNodes(kubectl)).Should(BeTrue(), "Connectivity test on same node failed")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				options := map[string]string{
+					"sockops.enabled": "true",
+				}
+				enableVXLANTunneling(options)
+				deploymentManager.DeployCilium(options, DeployCiliumOptionsAndDNS)
+				validateBPFTunnelMap()
+				Expect(testPodConnectivityAcrossNodes(kubectl)).Should(BeTrue(), "Connectivity test between nodes failed")
+				Expect(testPodConnectivitySameNodes(kubectl)).Should(BeTrue(), "Connectivity test on same node failed")
+				close(done)
+
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		It("Check connectivity with VXLAN encapsulation", func() {
-			options := map[string]string{}
-			enableVXLANTunneling(options)
-			deploymentManager.DeployCilium(options, DeployCiliumOptionsAndDNS)
-			validateBPFTunnelMap()
-			Expect(testPodConnectivityAcrossNodes(kubectl)).Should(BeTrue(), "Connectivity test between nodes failed")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				options := map[string]string{}
+				enableVXLANTunneling(options)
+				deploymentManager.DeployCilium(options, DeployCiliumOptionsAndDNS)
+				validateBPFTunnelMap()
+				Expect(testPodConnectivityAcrossNodes(kubectl)).Should(BeTrue(), "Connectivity test between nodes failed")
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		// Geneve is currently not supported on GKE
 		SkipItIf(helpers.RunsOnGKE, "Check connectivity with Geneve encapsulation", func() {
@@ -347,13 +364,18 @@ var _ = Describe("K8sDatapathConfig", func() {
 
 		// Sockops should work on 4.19, but currently fails. See #16418 for details.
 		SkipItIf(helpers.DoesNotRunOn54OrLaterKernel, "Check connectivity with sockops and direct routing", func() {
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.DeployCilium(map[string]string{
+					"sockops.enabled": "true",
+				}, DeployCiliumOptionsAndDNS)
+				Expect(testPodConnectivityAcrossNodes(kubectl)).Should(BeTrue(), "Connectivity test between nodes failed")
+				Expect(testPodConnectivitySameNodes(kubectl)).Should(BeTrue(), "Connectivity test on same node failed")
+				close(done)
 
-			deploymentManager.DeployCilium(map[string]string{
-				"sockops.enabled": "true",
-			}, DeployCiliumOptionsAndDNS)
-			Expect(testPodConnectivityAcrossNodes(kubectl)).Should(BeTrue(), "Connectivity test between nodes failed")
-			Expect(testPodConnectivitySameNodes(kubectl)).Should(BeTrue(), "Connectivity test on same node failed")
-		}, 600)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 	})
 
 	SkipContextIf(func() bool {
@@ -699,53 +721,93 @@ var _ = Describe("K8sDatapathConfig", func() {
 
 		It("Check baseline performance with direct routing TCP_CRR", func() {
 			Skip("Skipping TCP_CRR until fix reaches upstream")
-			deploymentManager.DeployCilium(directRoutingOptions, DeployCiliumOptionsAndDNS)
-			namespace := deployNetperf()
-			Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_CRR)).Should(BeTrue(), "Connectivity test TCP_CRR on same node failed")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.DeployCilium(directRoutingOptions, DeployCiliumOptionsAndDNS)
+				namespace := deployNetperf()
+				Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_CRR)).Should(BeTrue(), "Connectivity test TCP_CRR on same node failed")
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		It("Check baseline performance with direct routing TCP_RR", func() {
-			deploymentManager.DeployCilium(directRoutingOptions, DeployCiliumOptionsAndDNS)
-			namespace := deployNetperf()
-			Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_RR)).Should(BeTrue(), "Connectivity test TCP_RR on same node failed")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.DeployCilium(directRoutingOptions, DeployCiliumOptionsAndDNS)
+				namespace := deployNetperf()
+				Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_RR)).Should(BeTrue(), "Connectivity test TCP_RR on same node failed")
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		It("Check baseline performance with direct routing TCP_STREAM", func() {
-			deploymentManager.DeployCilium(directRoutingOptions, DeployCiliumOptionsAndDNS)
-			namespace := deployNetperf()
-			Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_STREAM)).Should(BeTrue(), "Connectivity test TCP_STREAM on same node failed")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.DeployCilium(directRoutingOptions, DeployCiliumOptionsAndDNS)
+				namespace := deployNetperf()
+				Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_STREAM)).Should(BeTrue(), "Connectivity test TCP_STREAM on same node failed")
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		It("Check performance with sockops and direct routing TCP_CRR", func() {
 			Skip("Skipping TCP_CRR until fix reaches upstream")
-			deploymentManager.DeployCilium(sockopsEnabledOptions, DeployCiliumOptionsAndDNS)
-			namespace := deployNetperf()
-			Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_CRR)).Should(BeTrue(), "Connectivity test TCP_CRR on same node failed")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.DeployCilium(sockopsEnabledOptions, DeployCiliumOptionsAndDNS)
+				namespace := deployNetperf()
+				Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_CRR)).Should(BeTrue(), "Connectivity test TCP_CRR on same node failed")
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		It("Check performance with sockops and direct routing TCP_RR", func() {
-			deploymentManager.DeployCilium(sockopsEnabledOptions, DeployCiliumOptionsAndDNS)
-			namespace := deployNetperf()
-			Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_RR)).Should(BeTrue(), "Connectivity test TCP_RR on same node failed")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.DeployCilium(sockopsEnabledOptions, DeployCiliumOptionsAndDNS)
+				namespace := deployNetperf()
+				Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_RR)).Should(BeTrue(), "Connectivity test TCP_RR on same node failed")
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		It("Check performance with sockops and direct routing TCP_STREAM", func() {
-			deploymentManager.DeployCilium(sockopsEnabledOptions, DeployCiliumOptionsAndDNS)
-			namespace := deployNetperf()
-			Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_STREAM)).Should(BeTrue(), "Connectivity test TCP_STREAM on same node failed")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.DeployCilium(sockopsEnabledOptions, DeployCiliumOptionsAndDNS)
+				namespace := deployNetperf()
+				Expect(testPodNetperfSameNodes(kubectl, namespace, helpers.TCP_STREAM)).Should(BeTrue(), "Connectivity test TCP_STREAM on same node failed")
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		It("Check baseline http performance with sockops and direct routing", func() {
-			deploymentManager.DeployCilium(directRoutingOptions, DeployCiliumOptionsAndDNS)
-			namespace := deployHTTPclientAndServer()
-			Expect(testPodHTTPSameNodes(kubectl, namespace)).Should(BeTrue(), "HTTP test on same node failed ")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.DeployCilium(directRoutingOptions, DeployCiliumOptionsAndDNS)
+				namespace := deployHTTPclientAndServer()
+				Expect(testPodHTTPSameNodes(kubectl, namespace)).Should(BeTrue(), "HTTP test on same node failed ")
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 
 		It("Check http performance with sockops and direct routing", func() {
-			deploymentManager.DeployCilium(sockopsEnabledOptions, DeployCiliumOptionsAndDNS)
-			namespace := deployHTTPclientAndServer()
-			Expect(testPodHTTPSameNodes(kubectl, namespace)).Should(BeTrue(), "HTTP test on same node failed ")
-		}, 600)
+			done := make(chan interface{})
+			go func() {
+				deploymentManager.DeployCilium(sockopsEnabledOptions, DeployCiliumOptionsAndDNS)
+				namespace := deployHTTPclientAndServer()
+				Expect(testPodHTTPSameNodes(kubectl, namespace)).Should(BeTrue(), "HTTP test on same node failed ")
+				close(done)
+			}()
+			Eventually(done, 600).Should(BeClosed())
+		})
 	})
 
 	SkipContextIf(func() bool {

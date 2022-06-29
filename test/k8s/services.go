@@ -60,7 +60,7 @@ var _ = SkipDescribeIf(helpers.RunsOn54Kernel, "K8sServicesTest", func() {
 	})
 
 	JustAfterEach(func() {
-		kubectl.ValidateNoErrorsInLogs(CurrentGinkgoTestDescription().Duration)
+		kubectl.ValidateNoErrorsInLogs(CurrentSpecReport().RunTime)
 	})
 
 	AfterAll(func() {
@@ -235,25 +235,30 @@ var _ = SkipDescribeIf(helpers.RunsOn54Kernel, "K8sServicesTest", func() {
 		// The test is relevant only for bpf_lxc LB, while bpf_sock (KPR enabled)
 		// doesn't require any special handling for hairpin service flows.
 		SkipItIf(helpers.RunsWithKubeProxyReplacement, "Checks service accessing itself (hairpin flow)", func() {
-			serviceNames := []string{echoServiceName}
 			// Hairpin flow mode is currently not supported for IPv6.
 			// TODO: Uncomment after https://github.com/cilium/cilium/pull/14138 is merged
 			// if helpers.DualStackSupported() {
 			// }
 			// 	serviceNames = append(serviceNames, // )
+			done := make(chan interface{})
+			go func() {
+				serviceNames := []string{echoServiceName}
+				for _, svcName := range serviceNames {
+					clusterIP, _, err := kubectl.GetServiceHostPort(helpers.DefaultNamespace, svcName)
+					Expect(err).Should(BeNil(), "Cannot get service %q ClusterIP", svcName)
+					Expect(govalidator.IsIP(clusterIP)).Should(BeTrue(), "ClusterIP is not an IP")
 
-			for _, svcName := range serviceNames {
-				clusterIP, _, err := kubectl.GetServiceHostPort(helpers.DefaultNamespace, svcName)
-				Expect(err).Should(BeNil(), "Cannot get service %q ClusterIP", svcName)
-				Expect(govalidator.IsIP(clusterIP)).Should(BeTrue(), "ClusterIP is not an IP")
+					url := fmt.Sprintf("http://%s/", net.JoinHostPort(clusterIP, "80"))
+					testCurlFromPods(kubectl, echoPodLabel, url, 10, 0)
+					url = fmt.Sprintf("tftp://%s/hello", net.JoinHostPort(clusterIP, "69"))
+					testCurlFromPods(kubectl, echoPodLabel, url, 10, 0)
+				}
+				close(done)
 
-				url := fmt.Sprintf("http://%s/", net.JoinHostPort(clusterIP, "80"))
-				testCurlFromPods(kubectl, echoPodLabel, url, 10, 0)
-				url = fmt.Sprintf("tftp://%s/hello", net.JoinHostPort(clusterIP, "69"))
-				testCurlFromPods(kubectl, echoPodLabel, url, 10, 0)
-			}
+			}()
+			Eventually(done, 600).Should(BeClosed())
 
-		}, 600)
+		})
 
 		SkipContextIf(func() bool {
 			return helpers.DoesNotRunWithKubeProxyReplacement() || helpers.DoesNotRunOnNetNextKernel()

@@ -12,9 +12,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 
 	flowpb "github.com/cilium/cilium/api/v1/flow"
 	observerpb "github.com/cilium/cilium/api/v1/observer"

@@ -1,0 +1,3 @@
+git config --global user.name "zhang he"
+git config --global user.email zhanghe9702@163.com
+

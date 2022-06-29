@@ -18,18 +18,17 @@
 package ginkgoext
 
 import (
-	"bytes"
-	"flag"
+	// "bytes"
+	// "flag"
 	"fmt"
-	"os"
+	// "os"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	"github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/config"
+	"github.com/onsi/ginkgo/v2"
 
 	"github.com/cilium/cilium/pkg/lock"
 	ciliumTestConfig "github.com/cilium/cilium/test/config"
@@ -75,55 +74,52 @@ var (
 	// when to call AfterAll. When using a new ginkgo equivalent to It or
 	// Measure, it may need a matching wrapper similar to wrapItFunc.
 
-	Context                               = wrapContextFunc(ginkgo.Context, false)
-	FContext                              = wrapContextFunc(ginkgo.FContext, true)
-	PContext                              = wrapNilContextFunc(ginkgo.PContext)
-	XContext                              = wrapNilContextFunc(ginkgo.XContext)
-	Describe                              = wrapContextFunc(ginkgo.Describe, false)
-	FDescribe                             = wrapContextFunc(ginkgo.FDescribe, true)
-	PDescribe                             = wrapNilContextFunc(ginkgo.PDescribe)
-	XDescribe                             = wrapNilContextFunc(ginkgo.XDescribe)
-	It                                    = wrapItFunc(ginkgo.It, false)
-	FIt                                   = wrapItFunc(ginkgo.FIt, true)
-	PIt                                   = ginkgo.PIt
-	XIt                                   = ginkgo.XIt
-	Measure                               = wrapMeasureFunc(ginkgo.Measure, false)
-	JustBeforeEach                        = ginkgo.JustBeforeEach
-	BeforeSuite                           = ginkgo.BeforeSuite
-	AfterSuite                            = ginkgo.AfterSuite
-	Skip                                  = ginkgo.Skip
-	Fail                                  = FailWithToggle
-	CurrentGinkgoTestDescription          = ginkgo.CurrentGinkgoTestDescription
-	GinkgoRecover                         = ginkgo.GinkgoRecover
-	GinkgoT                               = ginkgo.GinkgoT
-	RunSpecs                              = ginkgo.RunSpecs
-	RunSpecsWithCustomReporters           = ginkgo.RunSpecsWithCustomReporters
-	RunSpecsWithDefaultAndCustomReporters = ginkgo.RunSpecsWithDefaultAndCustomReporters
-	GinkgoWriter                          = NewWriter(ginkgo.GinkgoWriter)
+	Context           = wrapContextFunc(ginkgo.Context, false)
+	FContext          = wrapContextFunc(ginkgo.FContext, true)
+	PContext          = wrapNilContextFunc(ginkgo.PContext)
+	XContext          = wrapNilContextFunc(ginkgo.XContext)
+	Describe          = wrapContextFunc(ginkgo.Describe, false)
+	FDescribe         = wrapContextFunc(ginkgo.FDescribe, true)
+	PDescribe         = wrapNilContextFunc(ginkgo.PDescribe)
+	XDescribe         = wrapNilContextFunc(ginkgo.XDescribe)
+	It                = wrapItFunc(ginkgo.It, false)
+	FIt               = wrapItFunc(ginkgo.FIt, true)
+	PIt               = ginkgo.PIt
+	XIt               = ginkgo.XIt
+	JustBeforeEach    = ginkgo.JustBeforeEach
+	BeforeSuite       = ginkgo.BeforeSuite
+	AfterSuite        = ginkgo.AfterSuite
+	Skip              = ginkgo.Skip
+	Fail              = FailWithToggle
+	CurrentSpecReport = ginkgo.CurrentSpecReport
+	GinkgoRecover     = ginkgo.GinkgoRecover
+	GinkgoT           = ginkgo.GinkgoT
+	RunSpecs          = ginkgo.RunSpecs
+	GinkgoWriter      = NewWriter(ginkgo.GinkgoWriter)
 )
 
-type Done ginkgo.Done
+// type Done ginkgo.Done
 
 func init() {
 	// Only use the Ginkgo options and discard all other options
-	args := []string{}
-	for _, arg := range os.Args[1:] {
-		if strings.Contains(arg, "--ginkgo") {
-			args = append(args, arg)
-		}
-	}
+	// args := []string{}
+	// for _, arg := range os.Args[1:] {
+	// 	if strings.Contains(arg, "--ginkgo") {
+	// 		args = append(args, arg)
+	// 	}
+	// }
 
 	//Get GinkgoConfig flags
-	commandFlags := flag.NewFlagSet("ginkgo", flag.ContinueOnError)
-	commandFlags.SetOutput(new(bytes.Buffer))
+	// commandFlags := flag.NewFlagSet("ginkgo", flag.ContinueOnError)
+	// commandFlags.SetOutput(new(bytes.Buffer))
 
-	config.Flags(commandFlags, "ginkgo", true)
-	commandFlags.Parse(args)
+	// config.Flags(commandFlags, "ginkgo", true)
+	// commandFlags.Parse(args)
 	ciliumTestConfig.CiliumTestConfig.ParseFlags()
 
-	if !config.DefaultReporterConfig.Succinct {
-		config.DefaultReporterConfig.Verbose = true
-	}
+	// if !config.DefaultReporterConfig.Succinct {
+	// 	config.DefaultReporterConfig.Verbose = true
+	// }
 }
 
 func (s *scope) isUnset() bool {
@@ -187,8 +183,8 @@ func GinkgoPrint(message string, optionalValues ...interface{}) {
 
 // GetTestName returns the test Name in a single string without spaces or /
 func GetTestName() string {
-	testDesc := ginkgo.CurrentGinkgoTestDescription()
-	name := strings.Replace(testDesc.FullTestText, " ", "_", -1)
+	testDesc := ginkgo.CurrentSpecReport()
+	name := strings.Replace(testDesc.LeafNodeText, " ", "_", -1)
 	name = strings.Trim(name, "*")
 	return strings.Replace(name, "/", "-", -1)
 }
@@ -314,12 +310,12 @@ var afterFailedStatus map[string]bool = map[string]bool{}
 
 func testFailed(testName string) bool {
 	hasFailed, _ := afterEachFailed[testName]
-	return ginkgo.CurrentGinkgoTestDescription().Failed || hasFailed
+	return ginkgo.CurrentSpecReport().Failed() || hasFailed
 }
 
 // TestFailed returns true if the current test has failed.
 func TestFailed() bool {
-	testName := ginkgo.CurrentGinkgoTestDescription().FullTestText
+	testName := ginkgo.CurrentSpecReport().LeafNodeText
 	return testFailed(testName)
 }
 
@@ -362,7 +358,7 @@ func RunAfterEach(cs *scope) {
 		failEnabled = true
 	}()
 
-	testName := ginkgo.CurrentGinkgoTestDescription().FullTestText
+	testName := ginkgo.CurrentSpecReport().LeafNodeText
 
 	if _, ok := afterEachFailed[testName]; !ok {
 		afterEachFailed[testName] = false
@@ -374,7 +370,7 @@ func RunAfterEach(cs *scope) {
 	runAllAfterFail(cs, testName)
 	afterFailedStatus[testName] = true
 
-	hasFailed := afterEachFailed[testName] || ginkgo.CurrentGinkgoTestDescription().Failed
+	hasFailed := afterEachFailed[testName] || ginkgo.CurrentSpecReport().Failed()
 
 	runAllAfterEach(cs, testName)
 	afterEachStatus[testName] = true
@@ -400,7 +396,7 @@ func RunAfterEach(cs *scope) {
 }
 
 // AfterEach runs the function after each test in context
-func AfterEach(body func(), timeout ...float64) bool {
+func AfterEach(body func()) bool {
 	var contextName string
 	if currentScope != nil {
 		contextName = currentScope.text
@@ -408,12 +404,12 @@ func AfterEach(body func(), timeout ...float64) bool {
 	return afterEach(func() {
 		By("Running AfterEach for block %s", contextName)
 		body()
-	}, timeout...)
+	})
 }
 
-func afterEach(body func(), timeout ...float64) bool {
+func afterEach(body func()) bool {
 	if currentScope == nil {
-		return ginkgo.AfterEach(body, timeout...)
+		return ginkgo.AfterEach([]interface{}{body})
 	}
 	cs := currentScope
 	result := true
@@ -424,14 +420,14 @@ func afterEach(body func(), timeout ...float64) bool {
 		fn := func() {
 			RunAfterEach(cs)
 		}
-		result = ginkgo.AfterEach(fn, timeout...)
+		result = ginkgo.AfterEach([]interface{}{fn})
 	}
 	cs.afterEach = append(cs.afterEach, body)
 	return result
 }
 
 // BeforeEach runs the function before each test in context
-func BeforeEach(body func(), timeout ...float64) bool {
+func BeforeEach(body func()) bool {
 	var contextName string
 	if currentScope != nil {
 		contextName = currentScope.text
@@ -439,12 +435,12 @@ func BeforeEach(body func(), timeout ...float64) bool {
 	return beforeEach(func() {
 		By("Running BeforeEach block for %s", contextName)
 		body()
-	}, timeout...)
+	})
 }
 
-func beforeEach(body interface{}, timeout ...float64) bool {
+func beforeEach(body interface{}) bool {
 	if currentScope == nil {
-		return ginkgo.BeforeEach(body, timeout...)
+		return ginkgo.BeforeEach([]interface{}{body})
 	}
 	cs := currentScope
 	before := func() {
@@ -462,10 +458,10 @@ func beforeEach(body interface{}, timeout ...float64) bool {
 			Fail("failed due to BeforeAll failure")
 		}
 	}
-	return ginkgo.BeforeEach(applyAdvice(body, before, nil), timeout...)
+	return ginkgo.BeforeEach([]interface{}{applyAdvice(body, before, nil)})
 }
 
-func wrapContextFunc(fn func(string, func()) bool, focused bool) func(string, func()) bool {
+func wrapContextFunc(fn func(string, ...interface{}) bool, focused bool) func(string, func()) bool {
 	// Scope handling must be performed in the function body
 	// passed to gingko as Ginkgo now can defer calls to the given
 	// function body.
@@ -490,7 +486,7 @@ func wrapContextFunc(fn func(string, func()) bool, focused bool) func(string, fu
 	}
 }
 
-func wrapNilContextFunc(fn func(string, func()) bool) func(string, func()) bool {
+func wrapNilContextFunc(fn func(string, ...interface{}) bool) func(string, func()) bool {
 	// Scope handling must be performed in the function body
 	// passed to gingko as Ginkgo now can defer calls to the given
 	// function body.
@@ -507,7 +503,7 @@ func wrapNilContextFunc(fn func(string, func()) bool) func(string, func()) bool 
 // wrapItFunc wraps gingko.It to track invocations and correctly
 // execute AfterAll. This is tracked via scope.focusedTests and .normalTests.
 // This function is similar to wrapMeasureFunc.
-func wrapItFunc(fn func(string, interface{}, ...float64) bool, focused bool) func(string, interface{}, ...float64) bool {
+func wrapItFunc(it func(text string, args ...interface{}) bool, focused bool) func(string, ...interface{}) bool {
 	if rootScope.isUnset() {
 		rootScope.setSafely(0)
 		BeforeSuite(func() {
@@ -515,51 +511,53 @@ func wrapItFunc(fn func(string, interface{}, ...float64) bool, focused bool) fun
 			rootScope.setSafely(c)
 		})
 	}
-	return func(text string, body interface{}, timeout ...float64) bool {
+	return func(text string, args ...interface{}) bool {
+
 		if currentScope == nil {
-			return fn(text, body, timeout...)
+			return it(text, args...)
 		}
 		if focused || isTestFocused(currentScope.text+" "+text) {
 			currentScope.focusedTests++
 		} else {
 			currentScope.normalTests++
 		}
-		return fn(text, wrapTest(body), timeout...)
+		return it(text, args...)
 	}
 }
 
 // wrapMeasureFunc wraps gingko.Measure to track invocations and correctly
 // execute AfterAll. This is tracked via scope.focusedTests and .normalTests.
 // This function is similar to wrapItFunc.
-func wrapMeasureFunc(fn func(text string, body interface{}, samples int) bool, focused bool) func(text string, body interface{}, samples int) bool {
-	if rootScope.isUnset() {
-		rootScope.setSafely(0)
-		BeforeSuite(func() {
-			c, _ := calculateCounters(rootScope, false)
-			rootScope.setSafely(c)
-		})
-	}
-	return func(text string, body interface{}, samples int) bool {
-		if currentScope == nil {
-			return fn(text, body, samples)
-		}
-		if focused || isTestFocused(currentScope.text+" "+text) {
-			currentScope.focusedTests++
-		} else {
-			currentScope.normalTests++
-		}
-		return fn(text, wrapTest(body), samples)
-	}
-}
+// func wrapMeasureFunc(fn func(text string, body interface{}, samples int) bool, focused bool) func(text string, body interface{}, samples int) bool {
+// 	if rootScope.isUnset() {
+// 		rootScope.setSafely(0)
+// 		BeforeSuite(func() {
+// 			c, _ := calculateCounters(rootScope, false)
+// 			rootScope.setSafely(c)
+// 		})
+// 	}
+// 	return func(text string, body interface{}, samples int) bool {
+// 		if currentScope == nil {
+// 			return fn(text, body, samples)
+// 		}
+// 		if focused || isTestFocused(currentScope.text+" "+text) {
+// 			currentScope.focusedTests++
+// 		} else {
+// 			currentScope.normalTests++
+// 		}
+// 		return fn(text, wrapTest(body), samples)
+// 	}
+// }
 
 // isTestFocused checks the value of FocusString and return true if the given
 // text name is focussed, returns false if the test is not focused.
 func isTestFocused(text string) bool {
-	if len(config.GinkgoConfig.FocusStrings) == 0 {
+	suiteConfig, _ := ginkgo.GinkgoConfiguration()
+	if len(suiteConfig.FocusStrings) == 0 {
 		return false
 	}
 
-	focusFilter := regexp.MustCompile(config.GinkgoConfig.FocusStrings[0])
+	focusFilter := regexp.MustCompile(suiteConfig.FocusStrings[0])
 	return focusFilter.MatchString(text)
 }
 
@@ -578,16 +576,16 @@ func applyAdvice(f interface{}, before, after func()) interface{} {
 	return v.Interface()
 }
 
-func wrapTest(f interface{}) interface{} {
-	cs := currentScope
-	after := func() {
-		for cs != nil {
-			cs = cs.parent
-		}
-		GinkgoPrint("=== Test Finished at %s====", time.Now().Format(time.RFC3339))
-	}
-	return applyAdvice(f, nil, after)
-}
+// func wrapTest(f interface{}) interface{} {
+// 	cs := currentScope
+// 	after := func() {
+// 		for cs != nil {
+// 			cs = cs.parent
+// 		}
+// 		GinkgoPrint("=== Test Finished at %s====", time.Now().Format(time.RFC3339))
+// 	}
+// 	return applyAdvice(f, nil, after)
+// }
 
 // calculateCounters initialises the tracking counters that determine when
 // AfterAll should be called. It is not idempotent and should be guarded
@@ -647,7 +645,7 @@ func FailWithToggle(message string, callerSkip ...int) {
 		ginkgo.Fail(message, callerSkip...)
 	}
 
-	testName := ginkgo.CurrentGinkgoTestDescription().FullTestText
+	testName := ginkgo.CurrentSpecReport().LeafNodeText
 	afterEachFailed[testName] = true
 
 	afterEachCB[testName] = func() {
@@ -680,14 +678,13 @@ func SkipContextIf(condition func() bool, text string, body func()) bool {
 }
 
 // SkipItIf executes the given body if the given condition is NOT met.
-func SkipItIf(condition func() bool, text string, body func(), timeout ...float64) bool {
+func SkipItIf(condition func() bool, text string, body func()) bool {
 	if condition() {
 		return It(text, func() {
 			Skip("skipping due to unmet condition")
 		})
 	}
-
-	return It(text, body, timeout...)
+	return It(text, []interface{}{body})
 }
 
 // Failf calls Fail with a formatted string

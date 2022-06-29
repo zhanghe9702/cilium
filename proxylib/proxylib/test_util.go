@@ -6,9 +6,9 @@ package proxylib
 import (
 	cilium "github.com/cilium/proxy/go/cilium/api"
 	envoy_service_discovery "github.com/cilium/proxy/go/envoy/service/discovery/v3"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/any"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
+	any "google.golang.org/protobuf/types/known/anypb"
 	. "gopkg.in/check.v1"
 )
 
@@ -23,7 +23,7 @@ func (ins *Instance) InsertPolicyText(version string, policies []string, expectF
 
 	for _, policy := range policies {
 		pb := new(cilium.NetworkPolicy)
-		err := proto.UnmarshalText(policy, pb)
+		err := proto.Unmarshal([]byte(policy), pb)
 		if err != nil {
 			if expectFail != "unmarshal" {
 				logrus.Fatalf("Policy UnmarshalText failed: %v", err)

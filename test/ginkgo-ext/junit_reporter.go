@@ -19,8 +19,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/onsi/ginkgo/config"
-	"github.com/onsi/ginkgo/types"
+	// "github.com/onsi/ginkgo/v2/config"
+	"github.com/onsi/ginkgo/v2/types"
 )
 
 // JUnitTestSuite main struct to report all test in Junit Format
@@ -71,7 +71,7 @@ func NewJUnitReporter(filename string) *JUnitReporter {
 }
 
 // SpecSuiteWillBegin create the main JUnitTestSuite based on Ginkgo parameters
-func (reporter *JUnitReporter) SpecSuiteWillBegin(config config.GinkgoConfigType, summary *types.SuiteSummary) {
+func (reporter *JUnitReporter) SpecSuiteWillBegin(config types.SuiteConfig, summary *types.SuiteSummary) {
 	reporter.suite = JUnitTestSuite{
 		Name:      summary.SuiteDescription,
 		TestCases: []JUnitTestCase{},
@@ -120,7 +120,7 @@ func (reporter *JUnitReporter) SpecDidComplete(specSummary *types.SpecSummary) {
 		Name:      strings.Join(specSummary.ComponentTexts[1:], " "),
 		ClassName: reporter.testSuiteName,
 	}
-	if specSummary.State == types.SpecStateFailed || specSummary.State == types.SpecStateTimedOut || specSummary.State == types.SpecStatePanicked {
+	if specSummary.State == types.SpecStateFailed || specSummary.State == types.SpecStateInterrupted || specSummary.State == types.SpecStatePanicked {
 		testCase.FailureMessage = &JUnitFailureMessage{
 			Type:    reporter.failureTypeForState(specSummary.State),
 			Message: failureMessage(specSummary.Failure),
@@ -160,8 +160,8 @@ func (reporter *JUnitReporter) failureTypeForState(state types.SpecState) string
 	switch state {
 	case types.SpecStateFailed:
 		return "Failure"
-	case types.SpecStateTimedOut:
-		return "Timeout"
+	case types.SpecStateInterrupted:
+		return "Interrupted"
 	case types.SpecStatePanicked:
 		return "Panic"
 	default:

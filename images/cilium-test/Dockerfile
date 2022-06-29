@@ -22,11 +22,11 @@ RUN mkdir -p /out/linux/amd64/usr/local/bin /out/linux/arm64/usr/local/bin
 WORKDIR /go/src/github.com/cilium/cilium/images/cilium-test
 
 RUN --mount=type=bind,readwrite,target=/go/src/github.com/cilium/cilium --mount=target=/root/.cache,type=cache --mount=target=/go/pkg,type=cache \
-  go build -o /out/linux/amd64/usr/local/bin/ginkgo github.com/onsi/ginkgo/ginkgo
+  go build -mod=mod -o /out/linux/amd64/usr/local/bin/ginkgo github.com/onsi/ginkgo/v2/ginkgo
 
 RUN --mount=type=bind,readwrite,target=/go/src/github.com/cilium/cilium --mount=target=/root/.cache,type=cache --mount=target=/go/pkg,type=cache \
   env GOARCH=arm64 CC=aarch64-linux-gnu-gcc \
-    go build -o /out/linux/arm64/usr/local/bin/ginkgo github.com/onsi/ginkgo/ginkgo
+    go build -mod=mod -o /out/linux/arm64/usr/local/bin/ginkgo github.com/onsi/ginkgo/v2/ginkgo
 
 WORKDIR /go/src/github.com/cilium/cilium/test
 

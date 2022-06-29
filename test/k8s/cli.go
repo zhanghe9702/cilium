@@ -33,7 +33,7 @@ var _ = Describe("K8sCLI", func() {
 		})
 
 		JustAfterEach(func() {
-			kubectl.ValidateNoErrorsInLogs(CurrentGinkgoTestDescription().Duration)
+			kubectl.ValidateNoErrorsInLogs(CurrentSpecReport().RunTime)
 		})
 
 		Context("Identity CLI testing", func() {

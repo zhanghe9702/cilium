@@ -65,7 +65,7 @@ var _ = SkipDescribeIf(func() bool {
 	})
 
 	JustAfterEach(func() {
-		duration := CurrentGinkgoTestDescription().Duration
+		duration := CurrentSpecReport().RunTime
 		kubectl.ValidateNoErrorsInLogs(duration)
 	})
 

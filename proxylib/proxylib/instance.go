@@ -9,8 +9,8 @@ import (
 
 	cilium "github.com/cilium/proxy/go/cilium/api"
 	envoy_service_discovery "github.com/cilium/proxy/go/envoy/service/discovery/v3"
-	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/cilium/cilium/pkg/lock"
 )

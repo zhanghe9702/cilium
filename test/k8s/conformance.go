@@ -64,7 +64,7 @@ var _ = Describe("K8sConformance", func() {
 		})
 
 		JustAfterEach(func() {
-			kubectl.ValidateNoErrorsInLogs(CurrentGinkgoTestDescription().Duration)
+			kubectl.ValidateNoErrorsInLogs(CurrentSpecReport().RunTime)
 		})
 
 		It("Check connectivity-check compliance with portmap chaining", func() {
