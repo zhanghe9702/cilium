@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/blang/semver/v4"
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"golang.org/x/sys/unix"
 
@@ -215,11 +215,11 @@ func GetAppPods(apps []string, namespace string, kubectl *Kubectl, appFmt string
 // execution. Developers who are writing tests may wish to invoke this function
 // directly from test code to assist troubleshooting and test development.
 func HoldEnvironment(description ...string) {
-	test := ginkgo.CurrentGinkgoTestDescription()
+	test := ginkgo.CurrentSpecReport()
 	pid := unix.Getpid()
 
-	fmt.Fprintf(os.Stdout, "\n---\n%s", test.FullTestText)
-	fmt.Fprintf(os.Stdout, "\nat %s:%d", test.FileName, test.LineNumber)
+	fmt.Fprintf(os.Stdout, "\n---\n%s", test.LeafNodeText)
+	fmt.Fprintf(os.Stdout, "\nat %s:%d", test.FileName(), test.LineNumber())
 	fmt.Fprintf(os.Stdout, "\n\n%s", description)
 	fmt.Fprintf(os.Stdout, "\n\nPausing test for debug, use vagrant to access test setup.")
 	fmt.Fprintf(os.Stdout, "\nRun \"kill -SIGCONT %d\" to continue.\n", pid)

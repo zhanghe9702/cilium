@@ -3336,7 +3336,7 @@ func (kub *Kubectl) CiliumCheckReport(ctx context.Context) {
 }
 
 // ValidateNoErrorsInLogs checks that cilium logs since the given duration (By
-// default `CurrentGinkgoTestDescription().Duration`) do not contain any of the
+// default `CurrentSpecReport().RunTime`) do not contain any of the
 // known-bad messages (e.g., `deadlocks` or `segmentation faults`). In case of
 // any of these messages, it'll mark the test as failed.
 func (kub *Kubectl) ValidateNoErrorsInLogs(duration time.Duration) {
@@ -4438,7 +4438,7 @@ func addrsEqual(addr1, addr2 *models.BackendAddress) bool {
 // ensure that the namespace here is shorter than that, but keep it unique by
 // prefixing with timestamp
 func GenerateNamespaceForTest(seed string) string {
-	lowered := strings.ToLower(ginkgoext.CurrentGinkgoTestDescription().FullTestText)
+	lowered := strings.ToLower(ginkgoext.CurrentSpecReport().LeafNodeText)
 	// K8s namespaces cannot have spaces, underscores or slashes.
 	replaced := strings.Replace(lowered, " ", "", -1)
 	replaced = strings.Replace(replaced, "_", "", -1)

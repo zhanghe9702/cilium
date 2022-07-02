@@ -75,66 +75,78 @@ var _ = Describe("RuntimeLB", func() {
 	}
 
 	BeforeEach(func() {
-		vm.ServiceDelAll().ExpectSuccess()
-	}, 500)
+		done := make(chan interface{})
+		go func() {
+			vm.ServiceDelAll().ExpectSuccess()
+			close(done)
+
+		}()
+		Eventually(done, 500).Should(BeClosed())
+	})
 
 	It("validates basic service management functionality", func() {
-		result := vm.ServiceAdd(1, "[::]:80", []string{"[::1]:90", "[::2]:91"})
-		result.ExpectSuccess("unexpected failure to add service")
-		result = vm.ServiceGet(1)
-		result.ExpectSuccess("unexpected failure to retrieve service")
-		frontendAddress, err := vm.ServiceGetFrontendAddress(1)
-		Expect(err).Should(BeNil())
-		Expect(frontendAddress).To(ContainSubstring("[::]:80"),
-			"failed to retrieve frontend address: %q", result.GetStdOut())
+		done := make(chan interface{})
+		go func() {
+			result := vm.ServiceAdd(1, "[::]:80", []string{"[::1]:90", "[::2]:91"})
+			result.ExpectSuccess("unexpected failure to add service")
+			result = vm.ServiceGet(1)
+			result.ExpectSuccess("unexpected failure to retrieve service")
+			frontendAddress, err := vm.ServiceGetFrontendAddress(1)
+			Expect(err).Should(BeNil())
+			Expect(frontendAddress).To(ContainSubstring("[::]:80"),
+				"failed to retrieve frontend address: %q", result.GetStdOut())
 
-		//TODO: This need to be with Wait,Timeout
-		helpers.Sleep(5)
+			//TODO: This need to be with Wait,Timeout
+			helpers.Sleep(5)
 
-		By("Checking that BPF maps are updated based on service configuration")
+			By("Checking that BPF maps are updated based on service configuration")
 
-		result = vm.ExecCilium("bpf lb list")
-		result.ExpectSuccess("bpf lb map cannot be retrieved correctly")
-		Expect(result.Stdout()).To(ContainSubstring("[::1]:90"), fmt.Sprintf(
-			"service backends not added to BPF map: %q", result.GetStdOut()))
+			result = vm.ExecCilium("bpf lb list")
+			result.ExpectSuccess("bpf lb map cannot be retrieved correctly")
+			Expect(result.Stdout()).To(ContainSubstring("[::1]:90"), fmt.Sprintf(
+				"service backends not added to BPF map: %q", result.GetStdOut()))
 
-		By("Adding services that should not be allowed")
+			By("Adding services that should not be allowed")
 
-		result = vm.ServiceAdd(0, "[::]:10000", []string{"[::1]:90", "[::2]:91"})
-		result.ExpectFail("unexpected success adding service with id 0")
-		result = vm.ServiceAdd(-1, "[::]:10000", []string{"[::1]:90", "[::2]:91"})
-		result.ExpectFail("unexpected success adding service with id -1")
-		result = vm.ServiceAdd(1, "[::]:10000", []string{"[::1]:90", "[::2]:91"})
-		result.ExpectFail("unexpected success adding service with duplicate id 1")
-		result = vm.ServiceAdd(2, "10.2.2.2:0", []string{"3.3.3.3:90", "4.4.4.4:91"})
-		result.ExpectFail("unexpected success adding service with L3=>L4 redirect")
+			result = vm.ServiceAdd(0, "[::]:10000", []string{"[::1]:90", "[::2]:91"})
+			result.ExpectFail("unexpected success adding service with id 0")
+			result = vm.ServiceAdd(-1, "[::]:10000", []string{"[::1]:90", "[::2]:91"})
+			result.ExpectFail("unexpected success adding service with id -1")
+			result = vm.ServiceAdd(1, "[::]:10000", []string{"[::1]:90", "[::2]:91"})
+			result.ExpectFail("unexpected success adding service with duplicate id 1")
+			result = vm.ServiceAdd(2, "10.2.2.2:0", []string{"3.3.3.3:90", "4.4.4.4:91"})
+			result.ExpectFail("unexpected success adding service with L3=>L4 redirect")
 
-		By("Adding duplicate service FE address (IPv6)")
+			By("Adding duplicate service FE address (IPv6)")
 
-		//Trying to create a new service with id 10, that conflicts with the FE addr on id=1
-		result = vm.ServiceAdd(10, "[::]:80", []string{"[::1]:90", "[::2]:91"})
-		result.ExpectFail("unexpected success adding service with duplicate frontend address (id 10)")
-		result = vm.ServiceGet(10)
-		result.ExpectFail("unexpected success fetching service with id 10, service should not be present")
+			//Trying to create a new service with id 10, that conflicts with the FE addr on id=1
+			result = vm.ServiceAdd(10, "[::]:80", []string{"[::1]:90", "[::2]:91"})
+			result.ExpectFail("unexpected success adding service with duplicate frontend address (id 10)")
+			result = vm.ServiceGet(10)
+			result.ExpectFail("unexpected success fetching service with id 10, service should not be present")
 
-		By("Deleting IPv6 service")
-		result = vm.ServiceDel(1)
-		result.ExpectSuccess("unexpected failure deleting service with id 1")
+			By("Deleting IPv6 service")
+			result = vm.ServiceDel(1)
+			result.ExpectSuccess("unexpected failure deleting service with id 1")
 
-		By("Creating a valid IPv4 service with id 1")
+			By("Creating a valid IPv4 service with id 1")
 
-		result = vm.ServiceAdd(1, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"})
-		result.ExpectSuccess("unexpected failure adding valid service")
-		result = vm.ServiceGet(1)
-		result.ExpectSuccess("unexpected failure to retrieve service")
+			result = vm.ServiceAdd(1, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"})
+			result.ExpectSuccess("unexpected failure adding valid service")
+			result = vm.ServiceGet(1)
+			result.ExpectSuccess("unexpected failure to retrieve service")
 
-		By("Adding duplicate service FE address (IPv4)")
+			By("Adding duplicate service FE address (IPv4)")
 
-		result = vm.ServiceAdd(20, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"})
-		result.ExpectFail("unexpected success adding service with duplicate frontend address (id 20)")
-		result = vm.ServiceGet(20)
-		result.ExpectFail("unexpected success fetching service with id 20, service should not be present")
-	}, 500)
+			result = vm.ServiceAdd(20, "127.0.0.1:80", []string{"127.0.0.1:90", "127.0.0.1:91"})
+			result.ExpectFail("unexpected success adding service with duplicate frontend address (id 20)")
+			result = vm.ServiceGet(20)
+			result.ExpectFail("unexpected success fetching service with id 20, service should not be present")
+
+			close(done)
+		}()
+		Eventually(done, 500).Should(BeClosed())
+	})
 
 	It("validates service backend state updates", func() {
 		frontend1 := "2.2.2.2:8080"

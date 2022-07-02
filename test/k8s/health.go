@@ -36,7 +36,7 @@ var _ = Describe("K8sHealthTest", func() {
 		})
 
 		JustAfterEach(func() {
-			kubectl.ValidateNoErrorsInLogs(CurrentGinkgoTestDescription().Duration)
+			kubectl.ValidateNoErrorsInLogs(CurrentSpecReport().RunTime)
 		})
 
 		AfterAll(func() {

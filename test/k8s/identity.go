@@ -49,7 +49,7 @@ var _ = Describe("K8sIdentity", func() {
 		})
 
 		JustAfterEach(func() {
-			kubectl.ValidateNoErrorsInLogs(CurrentGinkgoTestDescription().Duration)
+			kubectl.ValidateNoErrorsInLogs(CurrentSpecReport().RunTime)
 		})
 
 		It("Expiration of CiliumIdentity", func() {

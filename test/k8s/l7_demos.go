@@ -40,7 +40,7 @@ var _ = SkipDescribeIf(helpers.RunsOn54Kernel, "K8sDemosTest", func() {
 	})
 
 	JustAfterEach(func() {
-		kubectl.ValidateNoErrorsInLogs(CurrentGinkgoTestDescription().Duration)
+		kubectl.ValidateNoErrorsInLogs(CurrentSpecReport().RunTime)
 	})
 
 	AfterEach(func() {

@@ -62,7 +62,7 @@ var _ = SkipDescribeIf(helpers.DoesNotRunOnNetNextKernel, "K8sBandwidthTest", fu
 		})
 
 		JustAfterEach(func() {
-			kubectl.ValidateNoErrorsInLogs(CurrentGinkgoTestDescription().Duration)
+			kubectl.ValidateNoErrorsInLogs(CurrentSpecReport().RunTime)
 		})
 
 		waitForTestPods := func() {
