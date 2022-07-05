@@ -67,42 +67,48 @@ var _ = Describe("K8sHealthTest", func() {
 		}
 
 		It("Checks status between nodes", func() {
-			cilium1, cilium1IP := getCilium(helpers.K8s1)
-			cilium2, cilium2IP := getCilium(helpers.K8s2)
-
-			By("checking that cilium API exposes health instances")
-			checkIP(cilium1, cilium1IP)
-			checkIP(cilium1, cilium2IP)
-			checkIP(cilium2, cilium1IP)
-			checkIP(cilium2, cilium2IP)
-
-			By("checking that `cilium-health --probe` succeeds")
-			healthCmd := "cilium-health status --probe -o json"
-			status := kubectl.CiliumExecMustSucceed(context.TODO(), cilium1, healthCmd)
-			Expect(status.Stdout()).ShouldNot(ContainSubstring("error"))
-
-			apiPaths := []string{
-				"health-endpoint.primary-address.icmp",
-				"health-endpoint.primary-address.http",
-				"host.primary-address.icmp",
-				"host.primary-address.http",
-			}
-			for node := 0; node <= 1; node++ {
-				healthCmd := "cilium-health status -o json"
-				status := kubectl.CiliumExecMustSucceed(context.TODO(), cilium1, healthCmd, "Cannot retrieve health status")
-				for _, path := range apiPaths {
-					filter := fmt.Sprintf("{.nodes[%d].%s}", node, path)
-					By("checking API response for %q", filter)
-					data, err := status.Filter(filter)
-					Expect(err).To(BeNil(), "cannot retrieve filter %q from health output", filter)
-					Expect(data.String()).Should(Not((BeEmpty())))
-					statusFilter := fmt.Sprintf("{.nodes[%d].%s.status}", node, path)
-					By("checking API status response for %q", statusFilter)
-					data, err = status.Filter(statusFilter)
-					Expect(err).To(BeNil(), "cannot retrieve filter %q from health output", statusFilter)
-					Expect(data.String()).Should(BeEmpty())
+			done := make(chan interface{})
+			go func ()  {
+				cilium1, cilium1IP := getCilium(helpers.K8s1)
+				cilium2, cilium2IP := getCilium(helpers.K8s2)
+	
+				By("checking that cilium API exposes health instances")
+				checkIP(cilium1, cilium1IP)
+				checkIP(cilium1, cilium2IP)
+				checkIP(cilium2, cilium1IP)
+				checkIP(cilium2, cilium2IP)
+	
+				By("checking that `cilium-health --probe` succeeds")
+				healthCmd := "cilium-health status --probe -o json"
+				status := kubectl.CiliumExecMustSucceed(context.TODO(), cilium1, healthCmd)
+				Expect(status.Stdout()).ShouldNot(ContainSubstring("error"))
+	
+				apiPaths := []string{
+					"health-endpoint.primary-address.icmp",
+					"health-endpoint.primary-address.http",
+					"host.primary-address.icmp",
+					"host.primary-address.http",
 				}
-			}
-		}, 30)
+				for node := 0; node <= 1; node++ {
+					healthCmd := "cilium-health status -o json"
+					status := kubectl.CiliumExecMustSucceed(context.TODO(), cilium1, healthCmd, "Cannot retrieve health status")
+					for _, path := range apiPaths {
+						filter := fmt.Sprintf("{.nodes[%d].%s}", node, path)
+						By("checking API response for %q", filter)
+						data, err := status.Filter(filter)
+						Expect(err).To(BeNil(), "cannot retrieve filter %q from health output", filter)
+						Expect(data.String()).Should(Not((BeEmpty())))
+						statusFilter := fmt.Sprintf("{.nodes[%d].%s.status}", node, path)
+						By("checking API status response for %q", statusFilter)
+						data, err = status.Filter(statusFilter)
+						Expect(err).To(BeNil(), "cannot retrieve filter %q from health output", statusFilter)
+						Expect(data.String()).Should(BeEmpty())
+					}
+				}
+	
+				close(done)
+			}()
+			Eventually(done, 30).Should(BeClosed())
+		})
 	})
 })

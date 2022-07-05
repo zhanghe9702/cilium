@@ -503,7 +503,7 @@ func wrapNilContextFunc(fn func(string, ...interface{}) bool) func(string, func(
 // wrapItFunc wraps gingko.It to track invocations and correctly
 // execute AfterAll. This is tracked via scope.focusedTests and .normalTests.
 // This function is similar to wrapMeasureFunc.
-func wrapItFunc(it func(text string, args ...interface{}) bool, focused bool) func(string, ...interface{}) bool {
+func wrapItFunc(it func(string, ...interface{}) bool, focused bool) func(string, interface{}) bool {
 	if rootScope.isUnset() {
 		rootScope.setSafely(0)
 		BeforeSuite(func() {
@@ -511,17 +511,17 @@ func wrapItFunc(it func(text string, args ...interface{}) bool, focused bool) fu
 			rootScope.setSafely(c)
 		})
 	}
-	return func(text string, args ...interface{}) bool {
+	return func(text string, body interface{}) bool {
 
 		if currentScope == nil {
-			return it(text, args...)
+			return it(text, body)
 		}
 		if focused || isTestFocused(currentScope.text+" "+text) {
 			currentScope.focusedTests++
 		} else {
 			currentScope.normalTests++
 		}
-		return it(text, args...)
+		return it(text, wrapTest(body))
 	}
 }
 
@@ -576,16 +576,16 @@ func applyAdvice(f interface{}, before, after func()) interface{} {
 	return v.Interface()
 }
 
-// func wrapTest(f interface{}) interface{} {
-// 	cs := currentScope
-// 	after := func() {
-// 		for cs != nil {
-// 			cs = cs.parent
-// 		}
-// 		GinkgoPrint("=== Test Finished at %s====", time.Now().Format(time.RFC3339))
-// 	}
-// 	return applyAdvice(f, nil, after)
-// }
+func wrapTest(f interface{}) interface{} {
+	cs := currentScope
+	after := func() {
+		for cs != nil {
+			cs = cs.parent
+		}
+		GinkgoPrint("=== Test Finished at %s====", time.Now().Format(time.RFC3339))
+	}
+	return applyAdvice(f, nil, after)
+}
 
 // calculateCounters initialises the tracking counters that determine when
 // AfterAll should be called. It is not idempotent and should be guarded
@@ -684,7 +684,7 @@ func SkipItIf(condition func() bool, text string, body func()) bool {
 			Skip("skipping due to unmet condition")
 		})
 	}
-	return It(text, []interface{}{body})
+	return It(text, body)
 }
 
 // Failf calls Fail with a formatted string
