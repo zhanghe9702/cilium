@@ -22,7 +22,7 @@ require (
 	github.com/cilium/ipam v0.0.0-20211026130907-54a76012817c
 	github.com/cilium/proxy v0.0.0-20210511221533-82a70d56bf32
 	github.com/cilium/workerpool v1.1.1
-	github.com/containernetworking/cni v1.0.1
+	github.com/containernetworking/cni v1.1.2
 	github.com/containernetworking/plugins v1.0.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/docker v20.10.12+incompatible
