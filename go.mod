@@ -57,7 +57,7 @@ require (
 	github.com/optiopay/kafka v0.0.0-00010101000000-000000000000
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.11.0
-	github.com/prometheus/client_model v0.2.1-0.20200623203004-60555c9708c7
+	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/procfs v0.7.3
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/sasha-s/go-deadlock v0.3.1
@@ -86,7 +86,7 @@ require (
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20211027115401-c9b1ec1aa6d8
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
 	google.golang.org/grpc v1.43.0
-	google.golang.org/protobuf v1.27.1
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/ini.v1 v1.66.2
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
